@@ -1,5 +1,5 @@
 moviepy==1.0.3
-edge-tts==6.1.12
+edge-tts>=7.0.0
 pillow==10.4.0
 python-dotenv==1.0.1
 srt==3.5.3
