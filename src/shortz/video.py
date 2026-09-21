@@ -36,7 +36,7 @@ def build_shorts_video(
                 caption.text,
                 fontsize=64,
                 color="white",
-                font="Arial-Bold",
+                font="NanumGothic-Bold",
                 stroke_color="black",
                 stroke_width=2,
                 size=(int(config.width * 0.9), None),
