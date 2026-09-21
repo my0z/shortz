@@ -8,7 +8,7 @@ load_dotenv()
 
 @dataclass
 class Config:
-    tts_voice: str = os.getenv("TTS_VOICE", "ko-KR-SunHyunNeo")
+    tts_voice: str = os.getenv("TTS_VOICE", "ko-KR-SunHiNeural")
     width: int = int(os.getenv("VIDEO_WIDTH", "1080"))
     height: int = int(os.getenv("VIDEO_HEIGHT", "1920"))
     fps: int = int(os.getenv("VIDEO_FPS", "30"))
