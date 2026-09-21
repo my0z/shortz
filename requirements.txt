@@ -1,6 +1,6 @@
 moviepy==1.0.3
 edge-tts>=7.0.0
-pillow==9.5.0
+pillow==10.4.0
 python-dotenv==1.0.1
 srt==3.5.3
 requests==2.32.3

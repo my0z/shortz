@@ -1,5 +1,10 @@
 import os
 
+from PIL import Image
+
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 from moviepy.editor import (
     AudioFileClip,
     ColorClip,
