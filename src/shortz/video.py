@@ -24,7 +24,7 @@ from moviepy.video.fx.all import crop, fadein, fadeout, loop
 from .config import config
 from .subtitles import Caption, split_into_captions
 
-VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi", ".ogv"}
 
 GRADIENT_PALETTES = [
     ((20, 10, 40), (90, 30, 110)),
@@ -112,12 +112,30 @@ def _build_slideshow_background(image_paths: list[str], duration: float, width: 
     return concatenate_videoclips(clips, method="compose")
 
 
+def _build_topic_video_background(video_paths: list[str], duration: float, width: int, height: int):
+    per_clip = duration / len(video_paths)
+    clips = []
+    for path in video_paths:
+        clip = _load_background_clip(path)
+        clip = _fit_cover(clip, width, height)
+        src_duration = clip.duration or per_clip
+        if src_duration < per_clip:
+            clip = loop(clip, duration=per_clip)
+        else:
+            clip = clip.subclip(0, min(per_clip, src_duration))
+        clips.append(clip.set_duration(per_clip).without_audio())
+    return concatenate_videoclips(clips, method="compose")
+
+
 def _build_background(
     background_path: str | None,
     duration: float,
     animated_fallback: bool = True,
     topic_images: list[str] | None = None,
+    topic_videos: list[str] | None = None,
 ):
+    if topic_videos:
+        return _build_topic_video_background(topic_videos, duration, config.width, config.height)
     if topic_images:
         return _build_slideshow_background(topic_images, duration, config.width, config.height)
     if background_path and os.path.exists(background_path):
@@ -143,6 +161,7 @@ def build_shorts_video(
     out_path: str,
     animated_fallback: bool = True,
     topic_images: list[str] | None = None,
+    topic_videos: list[str] | None = None,
 ) -> str:
     audio = AudioFileClip(narration_path)
     try:
@@ -154,7 +173,7 @@ def build_shorts_video(
     audio = audio_fadein(audio, fade_len)
     audio = audio_fadeout(audio, fade_len)
 
-    background = _build_background(background_path, duration, animated_fallback, topic_images)
+    background = _build_background(background_path, duration, animated_fallback, topic_images, topic_videos)
 
     captions: list[Caption] = split_into_captions(script_text, duration)
     caption_clips = []

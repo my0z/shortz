@@ -5,6 +5,7 @@ from .audio import mix_narration_with_music
 from .background import fetch_random_background
 from .config import config
 from .topic_images import fetch_topic_images
+from .topic_videos import fetch_topic_videos
 from .tts import VOICE_PRESETS, synthesize_sync
 from .video import build_shorts_video
 
@@ -20,6 +21,7 @@ def run(
     auto_music: bool,
     topic: str | None,
     topic_count: int,
+    topic_media: str,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -33,18 +35,24 @@ def run(
     audio_path = mix_narration_with_music(narration_path, mixed_path, music_path=music, auto_ambient=auto_music)
 
     topic_images = None
+    topic_videos = None
     if topic:
-        topic_dir = os.path.join(config.output_dir, "topic_images")
-        topic_images = fetch_topic_images(topic, topic_count, topic_dir)
-        if not topic_images:
-            print("관련 이미지 검색 실패. 기본 배경으로 대체합니다.")
+        topic_dir = os.path.join(config.output_dir, "topic_media")
+        if topic_media in ("video", "auto"):
+            topic_videos = fetch_topic_videos(topic, topic_count, topic_dir)
+        if not topic_videos:
+            if topic_media == "video":
+                print("관련 영상 검색 실패. 이미지로 대체합니다.")
+            topic_images = fetch_topic_images(topic, topic_count, topic_dir)
+        if not topic_videos and not topic_images:
+            print("관련 미디어 검색 실패. 기본 배경으로 대체합니다.")
 
-    if not topic_images and not background and auto_background and background_type == "image":
+    if not topic_images and not topic_videos and not background and auto_background and background_type == "image":
         background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
 
     animated_fallback = auto_background and background_type == "animated"
     out_path = os.path.join(config.output_dir, out_name)
-    build_shorts_video(script_text, audio_path, background, out_path, animated_fallback, topic_images)
+    build_shorts_video(script_text, audio_path, background, out_path, animated_fallback, topic_images, topic_videos)
     print(f"완성된 영상: {out_path}")
 
 
@@ -78,14 +86,20 @@ def main() -> None:
     )
     parser.add_argument(
         "--topic",
-        help="주제와 관련된 이미지를 자동 검색해 배경 슬라이드쇼로 사용",
+        help="주제와 관련된 영상이나 이미지를 자동 검색해 배경으로 사용",
         default=None,
     )
     parser.add_argument(
         "--topic-count",
-        help="주제 이미지 개수",
+        help="주제 미디어 개수",
         type=int,
         default=6,
+    )
+    parser.add_argument(
+        "--topic-media",
+        help="주제 검색 시 우선 미디어 종류",
+        default="video",
+        choices=["video", "image"],
     )
     args = parser.parse_args()
     run(
@@ -99,6 +113,7 @@ def main() -> None:
         args.auto_music,
         args.topic,
         args.topic_count,
+        args.topic_media,
     )
 
 
