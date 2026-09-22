@@ -1,6 +1,7 @@
 import argparse
 import os
 
+from .audio import mix_narration_with_music
 from .background import fetch_random_background
 from .config import config
 from .tts import VOICE_PRESETS, synthesize_sync
@@ -14,6 +15,8 @@ def run(
     auto_background: bool,
     voice_preset: str,
     background_type: str,
+    music: str | None,
+    auto_music: bool,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -23,12 +26,15 @@ def run(
     narration_path = os.path.join(config.output_dir, "narration.mp3")
     synthesize_sync(script_text, narration_path, preset=voice_preset)
 
+    mixed_path = os.path.join(config.output_dir, "narration_mixed.mp3")
+    audio_path = mix_narration_with_music(narration_path, mixed_path, music_path=music, auto_ambient=auto_music)
+
     if not background and auto_background and background_type == "image":
         background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
 
     animated_fallback = auto_background and background_type == "animated"
     out_path = os.path.join(config.output_dir, out_name)
-    build_shorts_video(script_text, narration_path, background, out_path, animated_fallback)
+    build_shorts_video(script_text, audio_path, background, out_path, animated_fallback)
     print(f"완성된 영상: {out_path}")
 
 
@@ -54,6 +60,12 @@ def main() -> None:
         default="animated",
         choices=["animated", "image", "solid"],
     )
+    parser.add_argument("--music", help="배경음악 파일 경로", default=None)
+    parser.add_argument(
+        "--auto-music",
+        help="음악 미지정 시 앰비언트 사운드 자동 추가",
+        action="store_true",
+    )
     args = parser.parse_args()
     run(
         args.script,
@@ -62,6 +74,8 @@ def main() -> None:
         not args.no_auto_background,
         args.voice_preset,
         args.background_type,
+        args.music,
+        args.auto_music,
     )
 
 

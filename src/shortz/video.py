@@ -2,7 +2,7 @@ import os
 import random
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
@@ -50,6 +50,13 @@ def _generate_animated_background(duration: float, width: int, height: int):
     return VideoClip(make_frame, duration=duration)
 
 
+def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float = 0.45):
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, fill=(0, 0, 0, int(255 * opacity)))
+    return ImageClip(np.array(img))
+
+
 def _load_background_clip(path: str):
     ext = os.path.splitext(path)[1].lower()
     if ext in VIDEO_EXTENSIONS:
@@ -94,22 +101,22 @@ def build_shorts_video(
     captions: list[Caption] = split_into_captions(script_text, duration)
     caption_clips = []
     for caption in captions:
-        clip = (
-            TextClip(
-                caption.text,
-                fontsize=64,
-                color="white",
-                font="NanumGothicBold",
-                stroke_color="black",
-                stroke_width=2,
-                size=(int(config.width * 0.9), None),
-                method="caption",
-            )
-            .set_start(caption.start)
-            .set_end(caption.end)
-            .set_position(("center", "center"))
+        text_clip = TextClip(
+            caption.text,
+            fontsize=64,
+            color="white",
+            font="NanumGothicBold",
+            stroke_color="black",
+            stroke_width=2,
+            size=(int(config.width * 0.9), None),
+            method="caption",
         )
-        caption_clips.append(clip)
+        box_clip = _caption_box_clip(text_clip.w + 48, text_clip.h + 32)
+
+        box_clip = box_clip.set_start(caption.start).set_end(caption.end).set_position(("center", "center"))
+        text_clip = text_clip.set_start(caption.start).set_end(caption.end).set_position(("center", "center"))
+        caption_clips.append(box_clip)
+        caption_clips.append(text_clip)
 
     final = CompositeVideoClip([background, *caption_clips], size=(config.width, config.height))
     final = final.set_audio(audio)
