@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 
 from .audio import mix_narration_with_music
@@ -10,8 +11,22 @@ from .tts import VOICE_PRESETS, synthesize_sync
 from .video import build_shorts_video
 
 
+def _load_scenes(scenes_path: str, scene_dir: str) -> list[dict]:
+    with open(scenes_path, "r", encoding="utf-8") as f:
+        raw_scenes = json.load(f)
+
+    scenes = []
+    for i, raw in enumerate(raw_scenes):
+        query = raw["query"]
+        paths = fetch_topic_videos(query, 1, os.path.join(scene_dir, f"scene_{i}"))
+        if not paths:
+            print(f"장면 {i + 1} ('{query}') 영상 검색 실패. 그라디언트로 대체합니다.")
+        scenes.append({"text": raw["text"], "path": paths[0] if paths else None})
+    return scenes
+
+
 def run(
-    script_path: str,
+    script_path: str | None,
     background: str | None,
     out_name: str,
     auto_background: bool,
@@ -22,11 +37,18 @@ def run(
     topic: str | None,
     topic_count: int,
     topic_media: str,
+    scenes_path: str | None,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
-    with open(script_path, "r", encoding="utf-8") as f:
-        script_text = f.read().strip()
+    scenes = None
+    if scenes_path:
+        scene_dir = os.path.join(config.output_dir, "scene_media")
+        scenes = _load_scenes(scenes_path, scene_dir)
+        script_text = "".join(s["text"] for s in scenes)
+    else:
+        with open(script_path, "r", encoding="utf-8") as f:
+            script_text = f.read().strip()
 
     narration_path = os.path.join(config.output_dir, "narration.mp3")
     synthesize_sync(script_text, narration_path, preset=voice_preset)
@@ -36,7 +58,7 @@ def run(
 
     topic_images = None
     topic_videos = None
-    if topic:
+    if topic and not scenes:
         topic_dir = os.path.join(config.output_dir, "topic_media")
         if topic_media in ("video", "auto"):
             topic_videos = fetch_topic_videos(topic, topic_count, topic_dir)
@@ -47,18 +69,27 @@ def run(
         if not topic_videos and not topic_images:
             print("관련 미디어 검색 실패. 기본 배경으로 대체합니다.")
 
-    if not topic_images and not topic_videos and not background and auto_background and background_type == "image":
+    if (
+        not scenes
+        and not topic_images
+        and not topic_videos
+        and not background
+        and auto_background
+        and background_type == "image"
+    ):
         background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
 
     animated_fallback = auto_background and background_type == "animated"
     out_path = os.path.join(config.output_dir, out_name)
-    build_shorts_video(script_text, audio_path, background, out_path, animated_fallback, topic_images, topic_videos)
+    build_shorts_video(
+        script_text, audio_path, background, out_path, animated_fallback, topic_images, topic_videos, scenes
+    )
     print(f"완성된 영상: {out_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="쇼츠 영상 생성기")
-    parser.add_argument("script", help="나레이션 스크립트 텍스트 파일 경로")
+    parser.add_argument("script", help="나레이션 스크립트 텍스트 파일 경로", nargs="?", default=None)
     parser.add_argument("--background", help="배경 이미지 경로", default=None)
     parser.add_argument("--out", help="출력 파일명", default="shorts.mp4")
     parser.add_argument(
@@ -101,7 +132,14 @@ def main() -> None:
         default="video",
         choices=["video", "image"],
     )
+    parser.add_argument(
+        "--scenes",
+        help="문장별 검색어를 담은 JSON 파일 경로. 지정 시 script 인자 대신 사용되고 --topic은 무시됩니다",
+        default=None,
+    )
     args = parser.parse_args()
+    if not args.script and not args.scenes:
+        parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
     run(
         args.script,
         args.background,
@@ -114,6 +152,7 @@ def main() -> None:
         args.topic,
         args.topic_count,
         args.topic_media,
+        args.scenes,
     )
 
 

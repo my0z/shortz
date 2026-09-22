@@ -141,13 +141,42 @@ def _build_topic_video_background(video_paths: list[str], duration: float, width
     return concatenate_videoclips(clips, method="compose")
 
 
+def _build_scene_background(scenes: list[dict], duration: float, width: int, height: int):
+    total_chars = sum(len(s["text"]) for s in scenes) or 1
+    clips = []
+    for scene in scenes:
+        scene_duration = max(0.3, duration * (len(scene["text"]) / total_chars))
+        path = scene.get("path")
+        if path:
+            clip = _load_background_clip(path)
+            clip = _fit_cover(clip, width, height)
+            src_duration = clip.duration or scene_duration
+            if src_duration < scene_duration:
+                clip = loop(clip, duration=scene_duration)
+            else:
+                clip = clip.subclip(0, min(scene_duration, src_duration))
+            clip = clip.set_duration(scene_duration).without_audio()
+        else:
+            clip = _generate_animated_background(scene_duration, width, height)
+        clips.append(clip)
+    combined = concatenate_videoclips(clips, method="compose")
+    if combined.duration < duration:
+        combined = loop(combined, duration=duration)
+    else:
+        combined = combined.subclip(0, duration)
+    return combined.set_duration(duration)
+
+
 def _build_background(
     background_path: str | None,
     duration: float,
     animated_fallback: bool = True,
     topic_images: list[str] | None = None,
     topic_videos: list[str] | None = None,
+    scenes: list[dict] | None = None,
 ):
+    if scenes:
+        return _build_scene_background(scenes, duration, config.width, config.height)
     if topic_videos:
         return _build_topic_video_background(topic_videos, duration, config.width, config.height)
     if topic_images:
@@ -176,6 +205,7 @@ def build_shorts_video(
     animated_fallback: bool = True,
     topic_images: list[str] | None = None,
     topic_videos: list[str] | None = None,
+    scenes: list[dict] | None = None,
 ) -> str:
     audio = AudioFileClip(narration_path)
     try:
@@ -187,7 +217,9 @@ def build_shorts_video(
     audio = audio_fadein(audio, fade_len)
     audio = audio_fadeout(audio, fade_len)
 
-    background = _build_background(background_path, duration, animated_fallback, topic_images, topic_videos)
+    background = _build_background(
+        background_path, duration, animated_fallback, topic_images, topic_videos, scenes
+    )
     background = _apply_color_grade(background)
 
     captions: list[Caption] = split_into_captions(script_text, duration)
