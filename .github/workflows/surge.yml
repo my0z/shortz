@@ -1,0 +1,35 @@
+name: surge-picks
+
+# 세션 트리거가 surge/run_request.txt 를 갱신해 푸시하면 실행된다
+on:
+  push:
+    branches: [claude/stock-surge-recommendation-2oovf4]
+    paths: [surge/run_request.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surge-picks
+  cancel-in-progress: false
+
+jobs:
+  picks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install pandas pyarrow numpy scikit-learn requests
+      - run: python -m surge.live
+      - name: 결과 커밋
+        run: |
+          git config user.name "surge-bot"
+          git config user.email "surge-bot@users.noreply.github.com"
+          git add surge_data
+          git commit -m "surge picks $(TZ=Asia/Seoul date +%Y%m%d-%H%M)" || exit 0
+          for i in 1 2 3; do git pull --rebase origin "$GITHUB_REF_NAME" && git push && break; sleep 3; done

@@ -50,14 +50,12 @@ python -m src.shortz.main scripts/sample_script.txt --out shorts.mp4
 
 ## 익일 급등 후보 추천 (surge/)
 
-aut.stock 저장소의 KRX 일봉+수급 패널 (코스피+코스닥 약 2,760종목 3년치) 로 내일 +5% 이상 오를 확률이 높은 종목을 고른다.
+평일 15:10 에 카카오톡으로 익일 +5% 이상 오를 확률이 높은 종목을 보낸다. 이 저장소만으로 동작하고 데이터도 여기에 따로 저장한다.
 
-```
-python -m surge.recommend              # 최신 거래일 기준 상위 20종목
-python -m surge.recommend --backtest   # 최근 120거래일 워크포워드 검증 결과도 출력
-```
-
-- 패널은 처음 실행할 때 aut.stock 에서 `data/panel.parquet` 로 자동 다운로드한다. `--refresh` 로 새로 받는다
-- 피처: 1~60일 수익률 / 양봉 크기 / 갭 / 이평 이격과 정배열 / 20·60·250일 신고가 위치 / 변동성 수축 / 기관·외국인 순매수 강도와 연속일수
-- 모델: HistGradientBoosting 분류기. 라벨은 익일 종가가 당일 종가 대비 +5% 이상
-- 결과는 `output/surge_YYYYMMDD.csv` 에 저장된다
+1. 15:00 세션 루틴이 `surge/run_request.txt` 를 갱신해 푸시한다
+2. GitHub Actions (`.github/workflows/surge.yml`) 가 `python -m surge.live` 를 실행한다
+   - 네이버 증권에서 코스피+코스닥 보통주 일봉 520개씩 수집 (장중이면 오늘 봉은 현재가 기준)
+   - 차트 피처 (모멘텀 / 봉 모양 / 거래량 / 이평 정배열 / 신고가 / 변동성 수축) 로 HistGradientBoosting 학습
+   - 점검: 상한가 도달 / 거래대금 10억 미만 / 스팩 / 우선주 제외. 최근 60일 홀드아웃 적중률 계산
+   - `surge_data/picks/YYYYMMDD.json` 과 오늘 봉 스냅샷 `surge_data/daily/YYYYMMDD.csv` 를 커밋
+3. 세션이 결과를 다시 점검한 뒤 말머리 `[종목 추천]` 으로 카카오톡을 보낸다. 휴장일은 보내지 않는다

@@ -15,7 +15,7 @@ def make_model(seed: int = 0) -> HistGradientBoostingClassifier:
         min_samples_leaf=200, l2_regularization=1.0, random_state=seed)
 
 
-def fit(X: pd.DataFrame, y: pd.Series, max_rows: int = 800_000, seed: int = 0):
+def fit(X: pd.DataFrame, y: pd.Series, max_rows: int = 600_000, seed: int = 0):
     lab = y.notna()
     Xl, yl = X[lab], (y[lab] >= SURGE).astype(int)
     if len(Xl) > max_rows:
