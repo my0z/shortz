@@ -14,6 +14,8 @@ class Config:
     fps: int = int(os.getenv("VIDEO_FPS", "30"))
     output_dir: str = "output"
     assets_dir: str = "assets"
+    pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
+    pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "")
 
 
 config = Config()

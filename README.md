@@ -34,7 +34,15 @@ python -m src.shortz.main scripts/sample_script.txt --out shorts.mp4
 
 정지 이미지 배경은 자동으로 천천히 줌인되는 켄번즈 효과가 적용됩니다. 나레이션 음량은 자동 정규화되고 영상과 오디오 모두 시작과 끝에 페이드가 들어갑니다.
 
-`--topic 주제` 옵션을 쓰면 위키미디어 커먼즈에서 주제와 관련된 무료 영상 클립을 자동 검색해 배경으로 이어붙입니다. 영상을 못 찾으면 Openverse 이미지 슬라이드쇼로 자동 대체됩니다. 이미지만 원하면 `--topic-media image`를 쓰고 개수는 `--topic-count`로 조절합니다.
+`--topic 주제` 옵션을 쓰면 주제와 관련된 무료 영상 클립을 자동 검색해 배경으로 이어붙입니다. 영상을 못 찾으면 Openverse 이미지 슬라이드쇼로 자동 대체됩니다. 이미지만 원하면 `--topic-media image`를 쓰고 개수는 `--topic-count`로 조절합니다.
+
+### 고품질 스톡 영상 연동 (선택)
+
+Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼즈보다 훨씬 관련성 높고 화질 좋은 영상을 받아옵니다. 키가 있으면 Pexels를 우선 사용하고 부족하면 Pixabay 위키미디어 순으로 자동 대체됩니다. 키가 없어도 위키미디어만으로 동작합니다.
+
+1. Pexels: https://www.pexels.com/api/ 가입 후 API 키 발급
+2. Pixabay: https://pixabay.com/api/docs/ 가입 후 API 키 발급
+3. `.env`에 `PEXELS_API_KEY`, `PIXABAY_API_KEY` 값 입력
 
 ## 구조
 
