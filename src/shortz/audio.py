@@ -46,5 +46,6 @@ def mix_narration_with_music(
     music = audio_fadeout(music, fade)
 
     mixed = CompositeAudioClip([music, narration]).set_duration(duration)
-    mixed.write_audiofile(out_path)
+    mixed.fps = narration.fps or 44100
+    mixed.write_audiofile(out_path, fps=mixed.fps)
     return out_path
