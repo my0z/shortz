@@ -23,6 +23,7 @@ KST = ZoneInfo("Asia/Seoul")
 ROOT = Path(__file__).resolve().parent.parent / "surge_data"
 MIN_VALUE20 = 1e9   # 20일 평균 거래대금 10억 미만 제외
 LIMIT_UP = 0.29     # 이미 상한가면 매수 불가
+COST = 0.002        # 왕복 수수료+세금
 
 
 def reasons(r: pd.Series) -> str:
@@ -65,26 +66,26 @@ def holdout(X: pd.DataFrame, y: pd.Series, days: int, top: int, names: pd.Series
     lab = y.notna()
     dates = d[lab].unique().sort_values()
     test = dates[-days:]
-    m = model.fit(X[d < test[0]], y[d < test[0]])
+    m = model.fit_reg(X[d < test[0]], y[d < test[0]])
     Xt = X[d.isin(test)]
-    p = pd.Series(m.predict_proba(Xt)[:, 1], index=Xt.index)
-    hits, rets, base = [], [], []
+    p = pd.Series(m.predict(Xt), index=Xt.index)
+    rets, base = [], []
     for day, s in p.groupby(level="date"):
         yt = y.reindex(s.index)
         ok = check(Xt.xs(day, level="date"), names).to_numpy()
         pick = s[ok].nlargest(top).index
-        hits.append((yt[pick] >= features.SURGE).mean())
-        rets.append(yt[pick].mean())
-        base.append((yt >= features.SURGE).mean())
-    return {"days": days, "base_rate": float(np.mean(base)), "hit_rate": float(np.mean(hits)),
-            "pick_ret": float(np.mean(rets)), "win_days": float(np.mean(np.array(rets) > 0))}
+        rets.append(yt[pick].fillna(0).mean() - COST)
+        base.append(yt.mean())
+    rets = np.array(rets)
+    return {"days": days, "pick_ret": float(rets.mean()), "mkt_ret": float(np.nanmean(base)),
+            "win_days": float((rets > 0).mean())}
 
 
 def message(day: datetime, now: datetime, picks: list[dict], ho: dict) -> str:
-    lines = [f"[종목 추천] {day:%m/%d} {now:%H:%M} (익일+5% 확률)"]
+    lines = [f"[종목 추천] {day:%m/%d} {now:%H:%M} 종가매수 익일시가매도"]
     for i, p in enumerate(picks, 1):
-        lines.append(f"{i}.{p['name']} {p['code']} {p['price']}원 {p['ret1']:+.1%} {p['prob']:.0%}")
-    lines.append(f"최근{ho['days']}일 적중 {ho['hit_rate']:.0%} (기본 {ho['base_rate']:.0%})")
+        lines.append(f"{i}.{p['name']}({p['code']}) {p['price']}원 기대{p['exp']:+.1%}")
+    lines.append(f"최근{ho['days']}일 비용후 평균{ho['pick_ret']:+.2%} 승률{ho['win_days']:.0%}")
     text = "\n".join(lines)
     while len(text) > 200 and len(lines) > 2:   # 카톡 200자 제한
         lines.pop(-2)
@@ -128,10 +129,10 @@ def main() -> None:
     names = uni.set_index("code")["name"]
     ho = holdout(X, y, args.holdout_days, args.top, names)
     print(f"홀드아웃 {ho}")
-    m = model.fit(X, y)
+    m = model.fit_reg(X, y)
 
     Xt = X.xs(last, level="date")
-    prob = pd.Series(m.predict_proba(Xt)[:, 1], index=Xt.index)
+    prob = pd.Series(m.predict(Xt), index=Xt.index)
     passed = check(Xt, names)
     ranked = prob.sort_values(ascending=False)
     dropped = [c for c in ranked.index[:args.top * 3] if not passed[c]]
@@ -139,13 +140,13 @@ def main() -> None:
 
     close = long[long["date"] == last].set_index("code")["close"]
     picks = [{"code": c, "name": names.get(c, c), "price": int(close[c]),
-              "ret1": float(Xt.loc[c, "ret1"]), "prob": float(prob[c]),
+              "ret1": float(Xt.loc[c, "ret1"]), "exp": float(prob[c]),
               "reasons": reasons(Xt.loc[c])} for c in chosen]
     result = {
         "status": "ok", "asof": now.isoformat(), "bar_date": f"{last:%Y-%m-%d}",
         "flow_last": f"{flow_last:%Y-%m-%d}",
         "picks": picks, "holdout": ho,
-        "dropped_by_check": [{"code": c, "name": names.get(c, c), "prob": float(prob[c]),
+        "dropped_by_check": [{"code": c, "name": names.get(c, c), "exp": float(prob[c]),
                               "ret1": float(Xt.loc[c, "ret1"])} for c in dropped],
         "message": message(last, now, picks, ho),
     }

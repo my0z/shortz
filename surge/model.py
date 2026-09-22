@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 
 from .features import SURGE
 
@@ -22,6 +22,18 @@ def fit(X: pd.DataFrame, y: pd.Series, max_rows: int = 600_000, seed: int = 0):
         idx = np.random.default_rng(seed).choice(len(Xl), max_rows, replace=False)
         Xl, yl = Xl.iloc[idx], yl.iloc[idx]
     return make_model(seed).fit(Xl, yl)
+
+
+def fit_reg(X: pd.DataFrame, y: pd.Series, max_rows: int = 600_000, seed: int = 0):
+    """익일 시가 수익률 (±15% 클립) 회귀. 연구 결과 가장 나은 기준 (surge/research.py)."""
+    lab = y.notna()
+    Xl, yl = X[lab], y[lab].clip(-0.15, 0.15)
+    if len(Xl) > max_rows:
+        idx = np.random.default_rng(seed).choice(len(Xl), max_rows, replace=False)
+        Xl, yl = Xl.iloc[idx], yl.iloc[idx]
+    return HistGradientBoostingRegressor(
+        max_iter=250, learning_rate=0.05, min_samples_leaf=300,
+        l2_regularization=1.0, random_state=seed).fit(Xl, yl)
 
 
 def walk_forward(X: pd.DataFrame, y: pd.Series, test_days: int = 120,

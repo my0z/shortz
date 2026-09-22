@@ -44,7 +44,7 @@ def flow_features(flows: dict[str, pd.DataFrame], C: pd.DataFrame) -> dict[str, 
 
 def build(p: dict[str, pd.DataFrame], flows: dict[str, pd.DataFrame] | None = None
           ) -> tuple[pd.DataFrame, pd.Series]:
-    """(피처 long DataFrame, 익일 수익률 Series) 를 돌려준다. index = (date code)."""
+    """(피처 long DataFrame, 익일 시가 수익률 Series) 를 돌려준다. index = (date code)."""
     O, H, L, C, V = p["open"], p["high"], p["low"], p["close"], p["volume"]
     ret = C.pct_change(fill_method=None)
     value = C * V
@@ -103,7 +103,8 @@ def build(p: dict[str, pd.DataFrame], flows: dict[str, pd.DataFrame] | None = No
 
     X = pd.concat({k: v.stack(future_stack=True) for k, v in f.items()}, axis=1)
     X.index.names = ["date", "code"]
-    y = (C.shift(-1) / C - 1).stack(future_stack=True).reindex(X.index)
+    # 라벨: 오늘 15시 가격 (종가 근사) 에 사서 익일 시가에 판 수익률
+    y = (O.shift(-1) / C - 1).stack(future_stack=True).reindex(X.index)
 
     ok = (C.stack(future_stack=True).reindex(X.index) >= MIN_PRICE) & X["ret60"].notna()
     ok &= O.stack(future_stack=True).reindex(X.index).notna() & (X["log_value"] > 0)
