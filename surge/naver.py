@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import re
 import time
-import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
@@ -47,10 +47,11 @@ def universe() -> pd.DataFrame:
 
 def daily(code: str, count: int = 520) -> pd.DataFrame:
     """일봉. columns date open high low close volume."""
-    root = ET.fromstring(_get(CHART_URL.format(code=code, count=count)).content)
+    # 응답이 EUC-KR 선언 XML 이라 파서 대신 정규식으로 item 만 읽는다
+    text = _get(CHART_URL.format(code=code, count=count)).content.decode("euc-kr", "replace")
     rows = []
-    for item in root.iter("item"):
-        d, o, h, lo, c, v = item.get("data").split("|")
+    for data in re.findall(r'<item data="([^"]+)"', text):
+        d, o, h, lo, c, v = data.split("|")
         rows.append((d, float(o), float(h), float(lo), float(c), float(v)))
     df = pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume"])
     df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
