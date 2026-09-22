@@ -32,6 +32,8 @@ python -m src.shortz.main scripts/sample_script.txt --out shorts.mp4
 
 목소리 톤은 `--voice-preset 발랄|귀여운|차분|기본` 중 선택합니다.
 
+정지 이미지 배경은 자동으로 천천히 줌인되는 켄번즈 효과가 적용됩니다. 나레이션 음량은 자동 정규화되고 영상과 오디오 모두 시작과 끝에 페이드가 들어갑니다.
+
 ## 구조
 
 - `src/shortz/tts.py` 나레이션 음성 합성

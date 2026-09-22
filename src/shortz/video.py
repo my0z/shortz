@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
 
+from moviepy.audio.fx.all import audio_fadein, audio_fadeout, audio_normalize
 from moviepy.editor import (
     AudioFileClip,
     ColorClip,
@@ -17,7 +18,7 @@ from moviepy.editor import (
     VideoFileClip,
     concatenate_videoclips,
 )
-from moviepy.video.fx.all import crop, loop
+from moviepy.video.fx.all import crop, fadein, fadeout, loop
 
 from .config import config
 from .subtitles import Caption, split_into_captions
@@ -50,6 +51,27 @@ def _generate_animated_background(duration: float, width: int, height: int):
     return VideoClip(make_frame, duration=duration)
 
 
+def _ken_burns_clip(image_path: str, duration: float, width: int, height: int, zoom_end: float = 1.15):
+    img = Image.open(image_path).convert("RGB")
+    img_ratio = img.width / img.height
+    target_ratio = width / height
+    if img_ratio > target_ratio:
+        base_h, base_w = height, int(height * img_ratio)
+    else:
+        base_w, base_h = width, int(width / img_ratio)
+    base_img = img.resize((base_w, base_h), Image.LANCZOS)
+
+    def make_frame(t):
+        scale = 1 + (zoom_end - 1) * (t / duration)
+        fw, fh = int(base_w * scale), int(base_h * scale)
+        frame_img = base_img.resize((fw, fh), Image.LANCZOS)
+        x1 = (fw - width) // 2
+        y1 = (fh - height) // 2
+        return np.array(frame_img.crop((x1, y1, x1 + width, y1 + height)))
+
+    return VideoClip(make_frame, duration=duration)
+
+
 def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float = 0.45):
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -74,6 +96,9 @@ def _fit_cover(clip, width: int, height: int):
 
 def _build_background(background_path: str | None, duration: float, animated_fallback: bool = True):
     if background_path and os.path.exists(background_path):
+        ext = os.path.splitext(background_path)[1].lower()
+        if ext not in VIDEO_EXTENSIONS:
+            return _ken_burns_clip(background_path, duration, config.width, config.height)
         clip = _load_background_clip(background_path)
         clip = _fit_cover(clip, config.width, config.height)
         if clip.duration and clip.duration < duration:
@@ -94,7 +119,14 @@ def build_shorts_video(
     animated_fallback: bool = True,
 ) -> str:
     audio = AudioFileClip(narration_path)
+    try:
+        audio = audio_normalize(audio)
+    except Exception:
+        pass
     duration = audio.duration
+    fade_len = min(0.6, duration / 4)
+    audio = audio_fadein(audio, fade_len)
+    audio = audio_fadeout(audio, fade_len)
 
     background = _build_background(background_path, duration, animated_fallback)
 
@@ -119,6 +151,8 @@ def build_shorts_video(
         caption_clips.append(text_clip)
 
     final = CompositeVideoClip([background, *caption_clips], size=(config.width, config.height))
+    final = fadein(final, fade_len)
+    final = fadeout(final, fade_len)
     final = final.set_audio(audio)
     final.write_videofile(out_path, fps=config.fps, codec="libx264", audio_codec="aac")
     return out_path
