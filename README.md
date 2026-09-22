@@ -47,3 +47,17 @@ python -m src.shortz.main scripts/sample_script.txt --out shorts.mp4
 - `scripts/` 나레이션 스크립트 모음
 - `assets/` 폰트와 배경 음악
 - `output/` 생성된 영상 출력 위치
+
+## 익일 급등 후보 추천 (surge/)
+
+aut.stock 저장소의 KRX 일봉+수급 패널 (코스피+코스닥 약 2,760종목 3년치) 로 내일 +5% 이상 오를 확률이 높은 종목을 고른다.
+
+```
+python -m surge.recommend              # 최신 거래일 기준 상위 20종목
+python -m surge.recommend --backtest   # 최근 120거래일 워크포워드 검증 결과도 출력
+```
+
+- 패널은 처음 실행할 때 aut.stock 에서 `data/panel.parquet` 로 자동 다운로드한다. `--refresh` 로 새로 받는다
+- 피처: 1~60일 수익률 / 양봉 크기 / 갭 / 이평 이격과 정배열 / 20·60·250일 신고가 위치 / 변동성 수축 / 기관·외국인 순매수 강도와 연속일수
+- 모델: HistGradientBoosting 분류기. 라벨은 익일 종가가 당일 종가 대비 +5% 이상
+- 결과는 `output/surge_YYYYMMDD.csv` 에 저장된다
