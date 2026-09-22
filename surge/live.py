@@ -55,8 +55,8 @@ def check(Xt: pd.DataFrame, names: pd.Series) -> pd.Series:
     return ok
 
 
-def holdout(X: pd.DataFrame, y: pd.Series, days: int, top: int) -> dict:
-    """최근 days 거래일을 빼고 학습해 그 기간 상위 top 성과를 잰다."""
+def holdout(X: pd.DataFrame, y: pd.Series, days: int, top: int, names: pd.Series) -> dict:
+    """최근 days 거래일을 빼고 학습해 그 기간 점검 통과 상위 top 성과를 잰다."""
     d = X.index.get_level_values("date")
     lab = y.notna()
     dates = d[lab].unique().sort_values()
@@ -65,9 +65,10 @@ def holdout(X: pd.DataFrame, y: pd.Series, days: int, top: int) -> dict:
     Xt = X[d.isin(test)]
     p = pd.Series(m.predict_proba(Xt)[:, 1], index=Xt.index)
     hits, rets, base = [], [], []
-    for _, s in p.groupby(level="date"):
+    for day, s in p.groupby(level="date"):
         yt = y.reindex(s.index)
-        pick = s.nlargest(top).index
+        ok = check(Xt.xs(day, level="date"), names).to_numpy()
+        pick = s[ok].nlargest(top).index
         hits.append((yt[pick] >= features.SURGE).mean())
         rets.append(yt[pick].mean())
         base.append((yt >= features.SURGE).mean())
@@ -114,13 +115,13 @@ def main() -> None:
         return
 
     X, y = features.build(naver.wide(long))
-    ho = holdout(X, y, args.holdout_days, args.top)
+    names = uni.set_index("code")["name"]
+    ho = holdout(X, y, args.holdout_days, args.top, names)
     print(f"홀드아웃 {ho}")
     m = model.fit(X, y)
 
     Xt = X.xs(last, level="date")
     prob = pd.Series(m.predict_proba(Xt)[:, 1], index=Xt.index)
-    names = uni.set_index("code")["name"]
     passed = check(Xt, names)
     ranked = prob.sort_values(ascending=False)
     dropped = [c for c in ranked.index[:args.top * 3] if not passed[c]]
