@@ -5,5 +5,3 @@ __pycache__/
 output/*.mp4
 output/*.srt
 .DS_Store
-data/
-output/*.csv
