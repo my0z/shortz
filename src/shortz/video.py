@@ -18,6 +18,7 @@ from moviepy.editor import (
     VideoFileClip,
     concatenate_videoclips,
 )
+from moviepy.video.compositing.transitions import crossfadein, crossfadeout
 from moviepy.video.fx.all import crop, fadein, fadeout, loop
 
 from .config import config
@@ -77,6 +78,17 @@ def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float 
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, fill=(0, 0, 0, int(255 * opacity)))
     return ImageClip(np.array(img))
+
+
+def _vignette_clip(width: int, height: int, duration: float, strength: float = 0.55):
+    y, x = np.mgrid[0:height, 0:width]
+    cx, cy = width / 2, height / 2
+    max_dist = np.sqrt(cx**2 + cy**2)
+    dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2) / max_dist
+    alpha = np.clip((dist - 0.4) / 0.6, 0, 1) * strength
+    rgba = np.zeros((height, width, 4), dtype="uint8")
+    rgba[..., 3] = (alpha * 255).astype("uint8")
+    return ImageClip(rgba).set_duration(duration)
 
 
 def _load_background_clip(path: str):
@@ -147,10 +159,18 @@ def build_shorts_video(
 
         box_clip = box_clip.set_start(caption.start).set_end(caption.end).set_position(("center", "center"))
         text_clip = text_clip.set_start(caption.start).set_end(caption.end).set_position(("center", "center"))
+
+        cap_fade = min(0.15, (caption.end - caption.start) / 3)
+        box_clip = crossfadein(box_clip, cap_fade)
+        box_clip = crossfadeout(box_clip, cap_fade)
+        text_clip = crossfadein(text_clip, cap_fade)
+        text_clip = crossfadeout(text_clip, cap_fade)
+
         caption_clips.append(box_clip)
         caption_clips.append(text_clip)
 
-    final = CompositeVideoClip([background, *caption_clips], size=(config.width, config.height))
+    vignette = _vignette_clip(config.width, config.height, duration)
+    final = CompositeVideoClip([background, vignette, *caption_clips], size=(config.width, config.height))
     final = fadein(final, fade_len)
     final = fadeout(final, fade_len)
     final = final.set_audio(audio)
