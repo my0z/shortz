@@ -106,7 +106,20 @@ def _fit_cover(clip, width: int, height: int):
     return crop(clip, width=width, height=height, x_center=clip.w / 2, y_center=clip.h / 2)
 
 
-def _build_background(background_path: str | None, duration: float, animated_fallback: bool = True):
+def _build_slideshow_background(image_paths: list[str], duration: float, width: int, height: int):
+    per_image = duration / len(image_paths)
+    clips = [_ken_burns_clip(p, per_image, width, height) for p in image_paths]
+    return concatenate_videoclips(clips, method="compose")
+
+
+def _build_background(
+    background_path: str | None,
+    duration: float,
+    animated_fallback: bool = True,
+    topic_images: list[str] | None = None,
+):
+    if topic_images:
+        return _build_slideshow_background(topic_images, duration, config.width, config.height)
     if background_path and os.path.exists(background_path):
         ext = os.path.splitext(background_path)[1].lower()
         if ext not in VIDEO_EXTENSIONS:
@@ -129,6 +142,7 @@ def build_shorts_video(
     background_path: str | None,
     out_path: str,
     animated_fallback: bool = True,
+    topic_images: list[str] | None = None,
 ) -> str:
     audio = AudioFileClip(narration_path)
     try:
@@ -140,7 +154,7 @@ def build_shorts_video(
     audio = audio_fadein(audio, fade_len)
     audio = audio_fadeout(audio, fade_len)
 
-    background = _build_background(background_path, duration, animated_fallback)
+    background = _build_background(background_path, duration, animated_fallback, topic_images)
 
     captions: list[Caption] = split_into_captions(script_text, duration)
     caption_clips = []

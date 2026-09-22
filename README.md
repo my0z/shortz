@@ -34,6 +34,8 @@ python -m src.shortz.main scripts/sample_script.txt --out shorts.mp4
 
 정지 이미지 배경은 자동으로 천천히 줌인되는 켄번즈 효과가 적용됩니다. 나레이션 음량은 자동 정규화되고 영상과 오디오 모두 시작과 끝에 페이드가 들어갑니다.
 
+`--topic 주제` 옵션을 쓰면 Openverse에서 주제와 관련된 무료 이미지를 자동으로 찾아 슬라이드쇼 배경으로 사용합니다. 이미지 개수는 `--topic-count`로 조절합니다.
+
 ## 구조
 
 - `src/shortz/tts.py` 나레이션 음성 합성
