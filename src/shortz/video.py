@@ -80,6 +80,20 @@ def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float 
     return ImageClip(np.array(img))
 
 
+def _apply_color_grade(clip, desaturate: float = 0.15, tint=(1.05, 1.0, 0.95), contrast: float = 1.08):
+    tint_arr = np.array(tint, dtype=np.float32)
+
+    def process(frame):
+        frame = frame.astype(np.float32)
+        gray = frame.mean(axis=2, keepdims=True)
+        frame = frame * (1 - desaturate) + gray * desaturate
+        frame = frame * tint_arr
+        frame = (frame - 127.5) * contrast + 127.5
+        return np.clip(frame, 0, 255).astype("uint8")
+
+    return clip.fl_image(process)
+
+
 def _vignette_clip(width: int, height: int, duration: float, strength: float = 0.55):
     y, x = np.mgrid[0:height, 0:width]
     cx, cy = width / 2, height / 2
@@ -174,6 +188,7 @@ def build_shorts_video(
     audio = audio_fadeout(audio, fade_len)
 
     background = _build_background(background_path, duration, animated_fallback, topic_images, topic_videos)
+    background = _apply_color_grade(background)
 
     captions: list[Caption] = split_into_captions(script_text, duration)
     caption_clips = []
