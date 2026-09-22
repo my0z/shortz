@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from .background import fetch_random_background, fetch_random_background_video
+from .background import fetch_random_background
 from .config import config
 from .tts import VOICE_PRESETS, synthesize_sync
 from .video import build_shorts_video
@@ -23,14 +23,12 @@ def run(
     narration_path = os.path.join(config.output_dir, "narration.mp3")
     synthesize_sync(script_text, narration_path, preset=voice_preset)
 
-    if not background and auto_background:
-        if background_type == "video":
-            background = fetch_random_background_video(os.path.join(config.output_dir, "background.mp4"))
-        else:
-            background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
+    if not background and auto_background and background_type == "image":
+        background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
 
+    animated_fallback = auto_background and background_type == "animated"
     out_path = os.path.join(config.output_dir, out_name)
-    build_shorts_video(script_text, narration_path, background, out_path)
+    build_shorts_video(script_text, narration_path, background, out_path, animated_fallback)
     print(f"완성된 영상: {out_path}")
 
 
@@ -52,9 +50,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--background-type",
-        help="배경 자동 다운로드 시 종류",
-        default="video",
-        choices=["video", "image"],
+        help="배경 미지정 시 처리 방식",
+        default="animated",
+        choices=["animated", "image", "solid"],
     )
     args = parser.parse_args()
     run(
