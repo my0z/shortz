@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from .background import fetch_random_background
+from .background import fetch_random_background, fetch_random_background_video
 from .config import config
 from .tts import VOICE_PRESETS, synthesize_sync
 from .video import build_shorts_video
@@ -13,6 +13,7 @@ def run(
     out_name: str,
     auto_background: bool,
     voice_preset: str,
+    background_type: str,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -23,7 +24,10 @@ def run(
     synthesize_sync(script_text, narration_path, preset=voice_preset)
 
     if not background and auto_background:
-        background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
+        if background_type == "video":
+            background = fetch_random_background_video(os.path.join(config.output_dir, "background.mp4"))
+        else:
+            background = fetch_random_background(os.path.join(config.output_dir, "background.jpg"))
 
     out_path = os.path.join(config.output_dir, out_name)
     build_shorts_video(script_text, narration_path, background, out_path)
@@ -46,8 +50,21 @@ def main() -> None:
         default="기본",
         choices=list(VOICE_PRESETS.keys()),
     )
+    parser.add_argument(
+        "--background-type",
+        help="배경 자동 다운로드 시 종류",
+        default="video",
+        choices=["video", "image"],
+    )
     args = parser.parse_args()
-    run(args.script, args.background, args.out, not args.no_auto_background, args.voice_preset)
+    run(
+        args.script,
+        args.background,
+        args.out,
+        not args.no_auto_background,
+        args.voice_preset,
+        args.background_type,
+    )
 
 
 if __name__ == "__main__":
