@@ -9,7 +9,41 @@ SURGE = 0.05  # 익일 종가 기준 +5% 이상을 급등으로 본다
 MIN_PRICE = 1000
 
 
-def build(p: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.Series]:
+def _streak(pos: pd.DataFrame) -> pd.DataFrame:
+    """연속 True 일수."""
+    arr = pos.to_numpy()
+    out = np.zeros(arr.shape)
+    run = np.zeros(arr.shape[1])
+    for i in range(len(arr)):
+        run = np.where(arr[i], run + 1, 0)
+        out[i] = run
+    return pd.DataFrame(out, index=pos.index, columns=pos.columns)
+
+
+def flow_features(flows: dict[str, pd.DataFrame], C: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """기관/외국인 수급 피처. 15시에는 오늘 수급을 모르므로 전일까지 값만 쓴다.
+
+    데이터가 며칠 늦게 들어와도 쓰도록 최근 값을 5일까지 이어 쓴다.
+    """
+    f = {}
+    both = None
+    for name, key in (("inst", "inst"), ("frgn", "foreign")):
+        fl = flows[key].reindex(columns=C.columns)
+        fl = fl.reindex(fl.index.union(C.index)).sort_index()
+        scale = fl.abs().rolling(20, min_periods=5).mean().replace(0, np.nan)
+        z = (fl / scale)
+        z5 = fl.rolling(5).sum() / scale
+        st = _streak(fl > 0).where(fl.notna())
+        for k, v in ((f"{name}_z", z), (f"{name}_z5", z5), (f"{name}_streak", st)):
+            f[k] = v.shift(1).ffill(limit=5).reindex(C.index)
+        pos = (fl > 0).astype(float).where(fl.notna())
+        both = pos if both is None else both * pos
+    f["both_buy"] = both.shift(1).ffill(limit=5).reindex(C.index)
+    return f
+
+
+def build(p: dict[str, pd.DataFrame], flows: dict[str, pd.DataFrame] | None = None
+          ) -> tuple[pd.DataFrame, pd.Series]:
     """(피처 long DataFrame, 익일 수익률 Series) 를 돌려준다. index = (date code)."""
     O, H, L, C, V = p["open"], p["high"], p["low"], p["close"], p["volume"]
     ret = C.pct_change(fill_method=None)
@@ -64,6 +98,8 @@ def build(p: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.Series]:
         np.repeat(ret.mean(axis=1).to_numpy()[:, None], C.shape[1], axis=1),
         index=C.index, columns=C.columns)
     f["log_price"] = np.log(C)
+    if flows is not None:
+        f.update(flow_features(flows, C))
 
     X = pd.concat({k: v.stack(future_stack=True) for k, v in f.items()}, axis=1)
     X.index.names = ["date", "code"]

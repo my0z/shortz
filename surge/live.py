@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-from . import features, model, naver
+from . import features, history, model, naver
 
 KST = ZoneInfo("Asia/Seoul")
 ROOT = Path(__file__).resolve().parent.parent / "surge_data"
@@ -39,6 +39,10 @@ def reasons(r: pd.Series) -> str:
         tags.append("변동성수축")
     if r["body"] > 0.05 and r["close_pos"] > 0.8:
         tags.append("고가권장대양봉")
+    if r.get("both_buy") == 1:
+        tags.append("전일기관외인동반매수")
+    elif r.get("inst_streak", 0) >= 3:
+        tags.append(f"기관{int(r['inst_streak'])}일연속")
     return " ".join(tags) or "-"
 
 
@@ -91,7 +95,7 @@ def message(day: datetime, now: datetime, picks: list[dict], ho: dict) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--top", type=int, default=5)
-    ap.add_argument("--count", type=int, default=520, help="종목당 일봉 개수")
+    ap.add_argument("--count", type=int, default=760, help="종목당 일봉 개수 (약 3년)")
     ap.add_argument("--holdout-days", type=int, default=60)
     ap.add_argument("--force", action="store_true", help="오늘 봉이 없어도 (휴장) 마지막 봉으로 추천")
     args = ap.parse_args()
@@ -114,7 +118,13 @@ def main() -> None:
         print(f"오늘 봉 없음 (마지막 {last:%Y-%m-%d}). 휴장으로 기록")
         return
 
-    X, y = features.build(naver.wide(long))
+    try:
+        print(history.refresh())
+    except Exception as e:  # aut.stock 을 못 읽어도 보유 데이터로 진행
+        print(f"수급 갱신 실패: {e}")
+    fl = history.flows()
+    flow_last = fl["inst"].index.max()
+    X, y = features.build(naver.wide(long), fl)
     names = uni.set_index("code")["name"]
     ho = holdout(X, y, args.holdout_days, args.top, names)
     print(f"홀드아웃 {ho}")
@@ -133,6 +143,7 @@ def main() -> None:
               "reasons": reasons(Xt.loc[c])} for c in chosen]
     result = {
         "status": "ok", "asof": now.isoformat(), "bar_date": f"{last:%Y-%m-%d}",
+        "flow_last": f"{flow_last:%Y-%m-%d}",
         "picks": picks, "holdout": ho,
         "dropped_by_check": [{"code": c, "name": names.get(c, c), "prob": float(prob[c]),
                               "ret1": float(Xt.loc[c, "ret1"])} for c in dropped],
