@@ -47,6 +47,7 @@ def run(
     font_preset: str,
     scene_photos: int,
     tts_engine: str,
+    renderer: str,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -100,6 +101,7 @@ def run(
         topic_videos,
         scenes,
         font_preset,
+        renderer,
     )
     print(f"완성된 영상: {out_path}")
 
@@ -172,6 +174,12 @@ def main() -> None:
         default="edge",
         choices=["edge", "google"],
     )
+    parser.add_argument(
+        "--renderer",
+        help="fast는 ffmpeg 필터와 ASS 자막으로 빠르게 렌더링. classic은 기존 moviepy 방식",
+        default="fast",
+        choices=["fast", "classic"],
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
@@ -191,6 +199,7 @@ def main() -> None:
         args.font_preset,
         args.scene_photos,
         args.tts_engine,
+        args.renderer,
     )
 
 

@@ -60,7 +60,9 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 
 ### 렌더링 속도
 
-배경으로 쓰이는 영상 클립은 moviepy가 프레임 단위로 리사이즈하는 대신 ffmpeg를 직접 호출해 크기 조정과 자르기를 처리합니다. 자막 합성처럼 세밀한 제어가 필요한 부분만 moviepy가 맡아 전체 렌더링 속도를 올립니다. `output/_prepared_*.mp4`는 중간 산출물이라 필요 없으면 지워도 됩니다.
+기본 렌더러(`--renderer fast`)는 moviepy 프레임 루프 없이 ffmpeg만으로 영상을 만듭니다. 배경 구간은 ffmpeg `scale`/`crop`/`zoompan`/`gradients`로 각각 인코딩한 뒤 concat으로 이어붙이고 색보정(`eq` `colorchannelmixer`) 비네트(`vignette`) 페이드(`fade` `afade`) 음량 정규화(`loudnorm`)와 자막을 마지막 한 번의 ffmpeg 패스에서 처리합니다. 자막은 ASS 파일로 만들어 libass로 굽기 때문에 한글 폰트가 시스템에 설치돼 있어야 하고 ffmpeg가 `--enable-libass`로 빌드돼 있어야 합니다. 4분 영상 기준 기존 방식보다 대략 8~10배 빠릅니다.
+
+fast 렌더러가 실패하면 자동으로 기존 moviepy 방식(`--renderer classic`)으로 다시 렌더링합니다. classic은 자막 박스 모서리가 둥글고 fast는 각진 박스라는 시각적 차이가 있습니다. `output/_work_*` `output/_prepared_*`는 중간 산출물이라 지워도 됩니다.
 
 ## 구조
 

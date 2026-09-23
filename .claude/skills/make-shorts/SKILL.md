@@ -46,6 +46,7 @@ description: Create a Korean vertical shorts video end to end using the shortz p
    씬 JSON 없이 단일 스크립트 파일이면 `--scenes` 대신 `scripts/<이름>.txt`를 위치 인자로 씁니다.
 
    옵션 선택 기준:
+   - `--renderer`: 기본값 fast (ffmpeg+ASS 자막 4분 영상 5분 내외). 문제 시 `--renderer classic`으로 moviepy 방식 사용 (같은 영상 40분 내외)
    - `--voice-preset`: 로맨스/잔잔한 내용은 차분, 정보성/활기찬 내용은 발랄, 귀여운 소재는 귀여운
    - `--font-preset`: 정보성은 고딕/바른고딕, 감성적인 내용은 손글씨/명조
    - `.env`에 `PEXELS_API_KEY`/`PIXABAY_API_KEY`가 있으면 자동으로 더 좋은 영상을 받아오므로 별도 옵션 불필요
