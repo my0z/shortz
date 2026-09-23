@@ -78,5 +78,5 @@ description: Create a Korean vertical shorts video end to end using the shortz p
 - **`(.venv)` 표시가 없음**: `source .venv/bin/activate` 안 한 것이므로 다시 활성화.
 - **SSH가 렌더링 중간에 끊김**: tmux 세션이면 렌더링은 계속되므로 재접속 후 `tmux attach -t shortz`.
 - **`ModuleNotFoundError`**: Termux 로컬에서 실행 중이거나 venv 미활성화. relay의 `~/shortz`로 안내.
-- **자막이 안 보임**: 폰트별 stroke_width 균형 문제일 수 있음. `src/shortz/video.py`의 TextClip stroke_width 확인.
+- **자막이 안 보임**: fast는 한글 폰트 설치와 ffmpeg libass 지원 여부를 확인하고 `src/shortz/ffmpeg_utils.py`의 `write_ass` 스타일을 확인. classic은 `src/shortz/video_classic.py`의 TextClip stroke_width 확인.
 - **주제 관련 영상/사진이 안 보임**: 실제로는 들어가 있는데 비중이 작아 눈에 안 띌 수 있음. `output/scene_media/scene_*/`에 파일이 받아졌는지 먼저 확인.

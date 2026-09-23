@@ -62,15 +62,18 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 
 기본 렌더러(`--renderer fast`)는 moviepy 프레임 루프 없이 ffmpeg만으로 영상을 만듭니다. 배경 구간은 ffmpeg `scale`/`crop`/`zoompan`/`gradients`로 각각 인코딩한 뒤 concat으로 이어붙이고 색보정(`eq` `colorchannelmixer`) 비네트(`vignette`) 페이드(`fade` `afade`) 음량 정규화(`loudnorm`)와 자막을 마지막 한 번의 ffmpeg 패스에서 처리합니다. 자막은 ASS 파일로 만들어 libass로 굽기 때문에 한글 폰트가 시스템에 설치돼 있어야 하고 ffmpeg가 `--enable-libass`로 빌드돼 있어야 합니다. 4분 영상 기준 기존 방식보다 대략 8~10배 빠릅니다.
 
+나레이션과 배경음악 믹싱도 ffmpeg `amix`로 처리하고 앰비언트 패드는 `aevalsrc`로 만듭니다. moviepy는 classic 렌더러를 쓸 때만 불러옵니다.
+
 fast 렌더러가 실패하면 자동으로 기존 moviepy 방식(`--renderer classic`)으로 다시 렌더링합니다. classic은 자막 박스 모서리가 둥글고 fast는 각진 박스라는 시각적 차이가 있습니다. `output/_work_*` `output/_prepared_*`는 중간 산출물이라 지워도 됩니다.
 
 ## 구조
 
 - `src/shortz/tts.py` 나레이션 음성 합성
-- `src/shortz/audio.py` 나레이션과 배경음악 믹싱
+- `src/shortz/audio.py` 나레이션과 배경음악 믹싱 (ffmpeg)
 - `src/shortz/subtitles.py` 자막 분할
-- `src/shortz/video.py` 영상 합성 및 배경 처리
-- `src/shortz/ffmpeg_utils.py` ffmpeg 직접 호출로 영상 리사이즈/자르기
+- `src/shortz/video.py` fast 렌더러와 렌더러 선택
+- `src/shortz/video_classic.py` moviepy 기반 classic 렌더러
+- `src/shortz/ffmpeg_utils.py` ffmpeg 배경 구간 인코딩과 ASS 자막과 최종 렌더링
 - `src/shortz/background.py` 자동 배경 이미지 다운로드
 - `src/shortz/main.py` 실행 진입점
 - `scripts/` 나레이션 스크립트 모음
