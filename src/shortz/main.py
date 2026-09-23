@@ -5,20 +5,39 @@ import os
 from .audio import mix_narration_with_music
 from .background import fetch_random_background
 from .config import config
+from .scene_images import DEFAULT_STYLE, generate_scene_images
 from .topic_images import fetch_topic_images
 from .topic_videos import fetch_topic_videos
 from .tts import VOICE_PRESETS, synthesize_sync
 from .video import FONT_PRESETS, build_shorts_video
 
 
-def _load_scenes(scenes_path: str, scene_dir: str, photo_count: int = 0) -> list[dict]:
+def _load_scenes(
+    scenes_path: str,
+    scene_dir: str,
+    photo_count: int = 0,
+    image_gen: str = "none",
+    image_style: str = DEFAULT_STYLE,
+    image_seed: int = 0,
+) -> list[dict]:
     with open(scenes_path, "r", encoding="utf-8") as f:
         raw_scenes = json.load(f)
 
     scenes = []
     for i, raw in enumerate(raw_scenes):
-        query = raw["query"]
         scene_media_dir = os.path.join(scene_dir, f"scene_{i}")
+
+        if image_gen == "pollinations":
+            prompt = raw.get("prompt") or raw.get("query", "")
+            count = photo_count if photo_count > 0 else 2
+            print(f"장면 {i + 1} 그림 {count}장 생성 중...")
+            images = generate_scene_images(prompt, count, scene_media_dir, image_style, image_seed + i * 100)
+            if not images:
+                print(f"장면 {i + 1} 그림 생성 실패. 그라디언트로 대체합니다.")
+            scenes.append({"text": raw["text"], "path": None, "photo_paths": images})
+            continue
+
+        query = raw["query"]
         paths = fetch_topic_videos(query, 1, scene_media_dir)
         if not paths:
             print(f"장면 {i + 1} ('{query}') 영상 검색 실패. 그라디언트로 대체합니다.")
@@ -48,13 +67,16 @@ def run(
     scene_photos: int,
     tts_engine: str,
     renderer: str,
+    image_gen: str,
+    image_style: str,
+    image_seed: int,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
     scenes = None
     if scenes_path:
         scene_dir = os.path.join(config.output_dir, "scene_media")
-        scenes = _load_scenes(scenes_path, scene_dir, scene_photos)
+        scenes = _load_scenes(scenes_path, scene_dir, scene_photos, image_gen, image_style, image_seed)
         script_text = "".join(s["text"] for s in scenes)
     else:
         with open(script_path, "r", encoding="utf-8") as f:
@@ -180,6 +202,23 @@ def main() -> None:
         default="fast",
         choices=["fast", "classic"],
     )
+    parser.add_argument(
+        "--image-gen",
+        help="--scenes 사용 시 스톡 대신 장면마다 AI 그림 생성. pollinations는 키 없이 무료",
+        default="none",
+        choices=["none", "pollinations"],
+    )
+    parser.add_argument(
+        "--image-style",
+        help="AI 그림 생성 시 모든 장면 앞에 붙는 공통 화풍 프롬프트 (영어)",
+        default=DEFAULT_STYLE,
+    )
+    parser.add_argument(
+        "--image-seed",
+        help="AI 그림 생성 seed 기준값. 같으면 같은 그림이 나옵니다",
+        type=int,
+        default=0,
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
@@ -200,6 +239,9 @@ def main() -> None:
         args.scene_photos,
         args.tts_engine,
         args.renderer,
+        args.image_gen,
+        args.image_style,
+        args.image_seed,
     )
 
 
