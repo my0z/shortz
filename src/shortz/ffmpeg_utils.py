@@ -31,6 +31,7 @@ def _encode_kwargs(fps: int) -> dict:
         "crf": 20,
         "pix_fmt": "yuv420p",
         "r": fps,
+        "threads": 2,
         "an": None,
     }
 

@@ -1,5 +1,8 @@
 import os
 import random
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -308,7 +311,16 @@ def _fast_background_segments(
     work_dir: str,
 ) -> list[str]:
     w, h, fps = config.width, config.height, config.fps
-    segments: list[str] = []
+    jobs: list[Callable[[], str]] = []
+
+    def clip(path, d):
+        jobs.append(partial(prepare_clip, path, d, w, h, fps, work_dir))
+
+    def photo(path, d):
+        jobs.append(partial(prepare_photo_clip, path, d, w, h, fps, work_dir))
+
+    def gradient(d):
+        jobs.append(partial(prepare_gradient_clip, d, w, h, fps, work_dir))
 
     if scenes:
         total_chars = sum(len(s["text"]) for s in scenes) or 1
@@ -327,32 +339,43 @@ def _fast_background_segments(
                 video_duration, photo_duration = 0.0, 0.0
 
             if video_duration > 0:
-                segments.append(prepare_clip(video_path, video_duration, w, h, fps, work_dir))
+                clip(video_path, video_duration)
             if photo_duration > 0:
                 per_photo = photo_duration / len(photo_paths)
                 for photo_path in photo_paths:
-                    segments.append(prepare_photo_clip(photo_path, per_photo, w, h, fps, work_dir))
+                    photo(photo_path, per_photo)
             if video_duration <= 0 and photo_duration <= 0:
-                segments.append(prepare_gradient_clip(scene_duration, w, h, fps, work_dir))
-        return segments
-
-    if topic_videos:
+                gradient(scene_duration)
+    elif topic_videos:
         per_clip = duration / len(topic_videos)
-        return [prepare_clip(p, per_clip, w, h, fps, work_dir) for p in topic_videos]
-
-    if topic_images:
+        for p in topic_videos:
+            clip(p, per_clip)
+    elif topic_images:
         per_image = duration / len(topic_images)
-        return [prepare_photo_clip(p, per_image, w, h, fps, work_dir) for p in topic_images]
-
-    if background_path and os.path.exists(background_path):
+        for p in topic_images:
+            photo(p, per_image)
+    elif background_path and os.path.exists(background_path):
         ext = os.path.splitext(background_path)[1].lower()
         if ext in VIDEO_EXTENSIONS:
-            return [prepare_clip(background_path, duration, w, h, fps, work_dir)]
-        return [prepare_photo_clip(background_path, duration, w, h, fps, work_dir)]
+            clip(background_path, duration)
+        else:
+            photo(background_path, duration)
+    elif animated_fallback:
+        gradient(duration)
+    else:
+        jobs.append(partial(prepare_solid_clip, duration, w, h, fps, work_dir))
 
-    if animated_fallback:
-        return [prepare_gradient_clip(duration, w, h, fps, work_dir)]
-    return [prepare_solid_clip(duration, w, h, fps, work_dir)]
+    return _run_segment_jobs(jobs)
+
+
+def _run_segment_jobs(jobs: list[Callable[[], str]]) -> list[str]:
+    """Encode background segments in parallel while keeping their original order."""
+    if len(jobs) <= 1:
+        return [job() for job in jobs]
+    workers = min(len(jobs), max(2, (os.cpu_count() or 2) // 2))
+    print(f"배경 구간 {len(jobs)}개를 {workers}개씩 병렬 인코딩...")
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(lambda job: job(), jobs))
 
 
 def _build_shorts_video_fast(
