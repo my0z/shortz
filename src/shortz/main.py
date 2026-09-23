@@ -8,7 +8,7 @@ from .config import config
 from .topic_images import fetch_topic_images
 from .topic_videos import fetch_topic_videos
 from .tts import VOICE_PRESETS, synthesize_sync
-from .video import build_shorts_video
+from .video import FONT_PRESETS, build_shorts_video
 
 
 def _load_scenes(scenes_path: str, scene_dir: str) -> list[dict]:
@@ -38,6 +38,7 @@ def run(
     topic_count: int,
     topic_media: str,
     scenes_path: str | None,
+    font_preset: str,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -82,7 +83,15 @@ def run(
     animated_fallback = auto_background and background_type == "animated"
     out_path = os.path.join(config.output_dir, out_name)
     build_shorts_video(
-        script_text, audio_path, background, out_path, animated_fallback, topic_images, topic_videos, scenes
+        script_text,
+        audio_path,
+        background,
+        out_path,
+        animated_fallback,
+        topic_images,
+        topic_videos,
+        scenes,
+        font_preset,
     )
     print(f"완성된 영상: {out_path}")
 
@@ -137,6 +146,12 @@ def main() -> None:
         help="문장별 검색어를 담은 JSON 파일 경로. 지정 시 script 인자 대신 사용되고 --topic은 무시됩니다",
         default=None,
     )
+    parser.add_argument(
+        "--font-preset",
+        help=f"자막 폰트 프리셋 {list(FONT_PRESETS.keys())}",
+        default="라운드",
+        choices=list(FONT_PRESETS.keys()),
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
@@ -153,6 +168,7 @@ def main() -> None:
         args.topic_count,
         args.topic_media,
         args.scenes,
+        args.font_preset,
     )
 
 

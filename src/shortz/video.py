@@ -26,6 +26,14 @@ from .subtitles import Caption, split_into_captions
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi", ".ogv"}
 
+FONT_PRESETS = {
+    "라운드": "NanumSquareRound-Bold",
+    "고딕": "NanumGothicBold",
+    "바른고딕": "NanumBarunGothic-Bold",
+    "명조": "NanumMyeongjoBold",
+    "손글씨": "Nanum-Brush-Script",
+}
+
 GRADIENT_PALETTES = [
     ((20, 10, 40), (90, 30, 110)),
     ((10, 20, 45), (20, 90, 120)),
@@ -206,6 +214,7 @@ def build_shorts_video(
     topic_images: list[str] | None = None,
     topic_videos: list[str] | None = None,
     scenes: list[dict] | None = None,
+    font_preset: str = "라운드",
 ) -> str:
     audio = AudioFileClip(narration_path)
     try:
@@ -229,7 +238,7 @@ def build_shorts_video(
             caption.text,
             fontsize=64,
             color="white",
-            font="NanumGothicBold",
+            font=FONT_PRESETS.get(font_preset, FONT_PRESETS["라운드"]),
             stroke_color="black",
             stroke_width=2,
             size=(int(config.width * 0.9), None),

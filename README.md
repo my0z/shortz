@@ -44,6 +44,14 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 2. Pixabay: https://pixabay.com/api/docs/ 가입 후 API 키 발급
 3. `.env`에 `PEXELS_API_KEY`, `PIXABAY_API_KEY` 값 입력
 
+### 문장별 맞춤 영상 (선택)
+
+`--topic` 대신 `--scenes JSON경로`를 쓰면 대본을 문장 구간으로 나눠 구간마다 다른 검색어로 영상을 찾아 붙입니다. JSON은 `[{"text": "구간 대본", "query": "영어 검색어"}, ...]` 형식이며 text를 순서대로 이어 붙인 값이 전체 나레이션이 됩니다. `scripts/animal_kingdom_scenes.json`을 예시로 참고하세요.
+
+### 자막 폰트
+
+`--font-preset 라운드|고딕|바른고딕|명조|손글씨` 로 자막 폰트를 고를 수 있습니다. 기본값은 부드러운 느낌의 라운드체입니다.
+
 ## 구조
 
 - `src/shortz/tts.py` 나레이션 음성 합성
