@@ -58,12 +58,17 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 
 `--font-preset 라운드|고딕|바른고딕|명조|손글씨` 로 자막 폰트를 고를 수 있습니다. 기본값은 부드러운 느낌의 라운드체입니다.
 
+### 렌더링 속도
+
+배경으로 쓰이는 영상 클립은 moviepy가 프레임 단위로 리사이즈하는 대신 ffmpeg를 직접 호출해 크기 조정과 자르기를 처리합니다. 자막 합성처럼 세밀한 제어가 필요한 부분만 moviepy가 맡아 전체 렌더링 속도를 올립니다. `output/_prepared_*.mp4`는 중간 산출물이라 필요 없으면 지워도 됩니다.
+
 ## 구조
 
 - `src/shortz/tts.py` 나레이션 음성 합성
 - `src/shortz/audio.py` 나레이션과 배경음악 믹싱
 - `src/shortz/subtitles.py` 자막 분할
 - `src/shortz/video.py` 영상 합성 및 배경 처리
+- `src/shortz/ffmpeg_utils.py` ffmpeg 직접 호출로 영상 리사이즈/자르기
 - `src/shortz/background.py` 자동 배경 이미지 다운로드
 - `src/shortz/main.py` 실행 진입점
 - `scripts/` 나레이션 스크립트 모음

@@ -22,6 +22,7 @@ from moviepy.video.compositing.transitions import crossfadein, crossfadeout
 from moviepy.video.fx.all import crop, fadein, fadeout, loop
 
 from .config import config
+from .ffmpeg_utils import prepare_clip
 from .subtitles import Caption, split_into_captions
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi", ".ogv"}
@@ -128,6 +129,22 @@ def _fit_cover(clip, width: int, height: int):
     return crop(clip, width=width, height=height, x_center=clip.w / 2, y_center=clip.h / 2)
 
 
+def _load_video_clip_fast(path: str, duration: float, width: int, height: int):
+    """Scale/crop/trim a video with ffmpeg directly, falling back to moviepy if that fails."""
+    try:
+        prepared_path = prepare_clip(path, duration, width, height, config.fps)
+        return VideoFileClip(prepared_path, audio=False).set_duration(duration)
+    except Exception:
+        clip = _load_background_clip(path)
+        clip = _fit_cover(clip, width, height)
+        src_duration = clip.duration or duration
+        if src_duration < duration:
+            clip = loop(clip, duration=duration)
+        else:
+            clip = clip.subclip(0, min(duration, src_duration))
+        return clip.set_duration(duration).without_audio()
+
+
 def _build_slideshow_background(image_paths: list[str], duration: float, width: int, height: int):
     per_image = duration / len(image_paths)
     clips = [_ken_burns_clip(p, per_image, width, height) for p in image_paths]
@@ -136,16 +153,7 @@ def _build_slideshow_background(image_paths: list[str], duration: float, width: 
 
 def _build_topic_video_background(video_paths: list[str], duration: float, width: int, height: int):
     per_clip = duration / len(video_paths)
-    clips = []
-    for path in video_paths:
-        clip = _load_background_clip(path)
-        clip = _fit_cover(clip, width, height)
-        src_duration = clip.duration or per_clip
-        if src_duration < per_clip:
-            clip = loop(clip, duration=per_clip)
-        else:
-            clip = clip.subclip(0, min(per_clip, src_duration))
-        clips.append(clip.set_duration(per_clip).without_audio())
+    clips = [_load_video_clip_fast(path, per_clip, width, height) for path in video_paths]
     return concatenate_videoclips(clips, method="compose")
 
 
@@ -165,14 +173,7 @@ def _build_scene_clip(scene: dict, scene_duration: float, width: int, height: in
 
     segments = []
     if video_duration > 0:
-        clip = _load_background_clip(video_path)
-        clip = _fit_cover(clip, width, height)
-        src_duration = clip.duration or video_duration
-        if src_duration < video_duration:
-            clip = loop(clip, duration=video_duration)
-        else:
-            clip = clip.subclip(0, min(video_duration, src_duration))
-        segments.append(clip.set_duration(video_duration).without_audio())
+        segments.append(_load_video_clip_fast(video_path, video_duration, width, height))
 
     if photo_duration > 0:
         per_photo = photo_duration / len(photo_paths)
@@ -217,13 +218,7 @@ def _build_background(
         ext = os.path.splitext(background_path)[1].lower()
         if ext not in VIDEO_EXTENSIONS:
             return _ken_burns_clip(background_path, duration, config.width, config.height)
-        clip = _load_background_clip(background_path)
-        clip = _fit_cover(clip, config.width, config.height)
-        if clip.duration and clip.duration < duration:
-            clip = loop(clip, duration=duration)
-        elif clip.duration and clip.duration > duration:
-            clip = clip.subclip(0, duration)
-        return clip.set_duration(duration)
+        return _load_video_clip_fast(background_path, duration, config.width, config.height)
     if animated_fallback:
         return _generate_animated_background(duration, config.width, config.height)
     return ColorClip(size=(config.width, config.height), color=(15, 15, 20)).set_duration(duration)

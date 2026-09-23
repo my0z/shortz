@@ -4,3 +4,4 @@ pillow==10.4.0
 python-dotenv==1.0.1
 srt==3.5.3
 requests==2.32.3
+ffmpeg-python==0.2.0
