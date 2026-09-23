@@ -264,7 +264,7 @@ def build_shorts_video(
             color="white",
             font=FONT_PRESETS.get(font_preset, FONT_PRESETS["라운드"]),
             stroke_color="black",
-            stroke_width=3,
+            stroke_width=2,
             size=(int(config.width * 0.9), None),
             method="caption",
         )
