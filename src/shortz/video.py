@@ -149,7 +149,7 @@ def _build_topic_video_background(video_paths: list[str], duration: float, width
     return concatenate_videoclips(clips, method="compose")
 
 
-def _build_scene_clip(scene: dict, scene_duration: float, width: int, height: int, photo_ratio: float = 0.35):
+def _build_scene_clip(scene: dict, scene_duration: float, width: int, height: int, photo_ratio: float = 0.5):
     video_path = scene.get("path")
     photo_paths = scene.get("photo_paths") or []
 
