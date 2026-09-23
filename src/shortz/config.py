@@ -16,6 +16,7 @@ class Config:
     assets_dir: str = "assets"
     pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
     pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "")
+    google_tts_api_key: str = os.getenv("GOOGLE_TTS_API_KEY", "")
 
 
 config = Config()

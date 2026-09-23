@@ -46,6 +46,7 @@ def run(
     scenes_path: str | None,
     font_preset: str,
     scene_photos: int,
+    tts_engine: str,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -59,7 +60,7 @@ def run(
             script_text = f.read().strip()
 
     narration_path = os.path.join(config.output_dir, "narration.mp3")
-    synthesize_sync(script_text, narration_path, preset=voice_preset)
+    synthesize_sync(script_text, narration_path, preset=voice_preset, engine=tts_engine)
 
     mixed_path = os.path.join(config.output_dir, "narration_mixed.mp3")
     audio_path = mix_narration_with_music(narration_path, mixed_path, music_path=music, auto_ambient=auto_music)
@@ -165,6 +166,12 @@ def main() -> None:
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--tts-engine",
+        help="나레이션 음성 합성 엔진. google은 GOOGLE_TTS_API_KEY 필요",
+        default="edge",
+        choices=["edge", "google"],
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
@@ -183,6 +190,7 @@ def main() -> None:
         args.scenes,
         args.font_preset,
         args.scene_photos,
+        args.tts_engine,
     )
 
 

@@ -50,6 +50,10 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 
 `--scene-photos 개수`를 함께 쓰면 각 장면 영상 뒤에 같은 검색어로 찾은 사진을 슬라이드로 이어 붙여 영상과 사진이 번갈아 나오는 구성이 됩니다.
 
+### Google Cloud TTS 연동 (선택)
+
+`--tts-engine google`을 쓰면 edge-tts 대신 Google Cloud Text-to-Speech로 나레이션을 생성합니다. Neural2 고품질 음성을 사용하며 `.env`에 `GOOGLE_TTS_API_KEY` 값이 필요합니다. 키가 없으면 기본값인 `edge`를 그대로 쓰면 됩니다.
+
 ### 자막 폰트
 
 `--font-preset 라운드|고딕|바른고딕|명조|손글씨` 로 자막 폰트를 고를 수 있습니다. 기본값은 부드러운 느낌의 라운드체입니다.
