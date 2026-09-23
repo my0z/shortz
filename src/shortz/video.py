@@ -81,7 +81,7 @@ def _ken_burns_clip(image_path: str, duration: float, width: int, height: int, z
     return VideoClip(make_frame, duration=duration)
 
 
-def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float = 0.45):
+def _caption_box_clip(width: int, height: int, radius: int = 24, opacity: float = 0.65):
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, fill=(0, 0, 0, int(255 * opacity)))
@@ -260,11 +260,11 @@ def build_shorts_video(
     for caption in captions:
         text_clip = TextClip(
             caption.text,
-            fontsize=64,
+            fontsize=72,
             color="white",
             font=FONT_PRESETS.get(font_preset, FONT_PRESETS["라운드"]),
             stroke_color="black",
-            stroke_width=2,
+            stroke_width=3,
             size=(int(config.width * 0.9), None),
             method="caption",
         )
