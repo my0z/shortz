@@ -1,6 +1,6 @@
 ---
 name: make-shorts
-description: Create a Korean vertical shorts video end to end using the shortz pipeline in this repo. Use when the user asks to make a shorts video, an AI-narrated video, or a video about a specific topic or story. Writes the narration script and scene JSON, commits and pushes them, then gives the exact relay commands to render and download the result.
+description: Create a Korean vertical shorts video end to end using the shortz pipeline in this repo. Trigger phrase the user says is "쇼츠 영상 제작 주제는 X" (also matches "쇼츠 영상 만들어줘 주제는 X" and similar). Use whenever the user asks to make a shorts video, an AI-narrated video, or a video about a specific topic or story. Writes the narration script and scene JSON, commits and pushes them, then gives the exact relay commands to render and download the result.
 ---
 
 # shortz 영상 제작 스킬
