@@ -149,24 +149,48 @@ def _build_topic_video_background(video_paths: list[str], duration: float, width
     return concatenate_videoclips(clips, method="compose")
 
 
+def _build_scene_clip(scene: dict, scene_duration: float, width: int, height: int, photo_ratio: float = 0.35):
+    video_path = scene.get("path")
+    photo_paths = scene.get("photo_paths") or []
+
+    if video_path and photo_paths:
+        photo_duration = min(scene_duration * photo_ratio, max(scene_duration - 0.5, 0.0))
+        video_duration = scene_duration - photo_duration
+    elif video_path:
+        video_duration, photo_duration = scene_duration, 0.0
+    elif photo_paths:
+        video_duration, photo_duration = 0.0, scene_duration
+    else:
+        video_duration, photo_duration = 0.0, 0.0
+
+    segments = []
+    if video_duration > 0:
+        clip = _load_background_clip(video_path)
+        clip = _fit_cover(clip, width, height)
+        src_duration = clip.duration or video_duration
+        if src_duration < video_duration:
+            clip = loop(clip, duration=video_duration)
+        else:
+            clip = clip.subclip(0, min(video_duration, src_duration))
+        segments.append(clip.set_duration(video_duration).without_audio())
+
+    if photo_duration > 0:
+        per_photo = photo_duration / len(photo_paths)
+        for photo_path in photo_paths:
+            segments.append(_ken_burns_clip(photo_path, per_photo, width, height))
+
+    if not segments:
+        segments.append(_generate_animated_background(scene_duration, width, height))
+
+    return concatenate_videoclips(segments, method="compose")
+
+
 def _build_scene_background(scenes: list[dict], duration: float, width: int, height: int):
     total_chars = sum(len(s["text"]) for s in scenes) or 1
     clips = []
     for scene in scenes:
         scene_duration = max(0.3, duration * (len(scene["text"]) / total_chars))
-        path = scene.get("path")
-        if path:
-            clip = _load_background_clip(path)
-            clip = _fit_cover(clip, width, height)
-            src_duration = clip.duration or scene_duration
-            if src_duration < scene_duration:
-                clip = loop(clip, duration=scene_duration)
-            else:
-                clip = clip.subclip(0, min(scene_duration, src_duration))
-            clip = clip.set_duration(scene_duration).without_audio()
-        else:
-            clip = _generate_animated_background(scene_duration, width, height)
-        clips.append(clip)
+        clips.append(_build_scene_clip(scene, scene_duration, width, height))
     combined = concatenate_videoclips(clips, method="compose")
     if combined.duration < duration:
         combined = loop(combined, duration=duration)

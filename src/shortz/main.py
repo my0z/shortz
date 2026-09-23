@@ -11,17 +11,23 @@ from .tts import VOICE_PRESETS, synthesize_sync
 from .video import FONT_PRESETS, build_shorts_video
 
 
-def _load_scenes(scenes_path: str, scene_dir: str) -> list[dict]:
+def _load_scenes(scenes_path: str, scene_dir: str, photo_count: int = 0) -> list[dict]:
     with open(scenes_path, "r", encoding="utf-8") as f:
         raw_scenes = json.load(f)
 
     scenes = []
     for i, raw in enumerate(raw_scenes):
         query = raw["query"]
-        paths = fetch_topic_videos(query, 1, os.path.join(scene_dir, f"scene_{i}"))
+        scene_media_dir = os.path.join(scene_dir, f"scene_{i}")
+        paths = fetch_topic_videos(query, 1, scene_media_dir)
         if not paths:
             print(f"장면 {i + 1} ('{query}') 영상 검색 실패. 그라디언트로 대체합니다.")
-        scenes.append({"text": raw["text"], "path": paths[0] if paths else None})
+
+        photo_paths = []
+        if photo_count > 0:
+            photo_paths = fetch_topic_images(query, photo_count, scene_media_dir)
+
+        scenes.append({"text": raw["text"], "path": paths[0] if paths else None, "photo_paths": photo_paths})
     return scenes
 
 
@@ -39,13 +45,14 @@ def run(
     topic_media: str,
     scenes_path: str | None,
     font_preset: str,
+    scene_photos: int,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
     scenes = None
     if scenes_path:
         scene_dir = os.path.join(config.output_dir, "scene_media")
-        scenes = _load_scenes(scenes_path, scene_dir)
+        scenes = _load_scenes(scenes_path, scene_dir, scene_photos)
         script_text = "".join(s["text"] for s in scenes)
     else:
         with open(script_path, "r", encoding="utf-8") as f:
@@ -152,6 +159,12 @@ def main() -> None:
         default="라운드",
         choices=list(FONT_PRESETS.keys()),
     )
+    parser.add_argument(
+        "--scene-photos",
+        help="--scenes 사용 시 각 장면 뒤에 붙일 사진 슬라이드 개수. 0이면 사진 없이 영상만 사용",
+        type=int,
+        default=0,
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
@@ -169,6 +182,7 @@ def main() -> None:
         args.topic_media,
         args.scenes,
         args.font_preset,
+        args.scene_photos,
     )
 
 
