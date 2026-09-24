@@ -1,6 +1,6 @@
 import base64
 import io
-import json
+import re
 import time
 
 import requests
@@ -19,11 +19,9 @@ REFERENCE_MAX_SIDE = 500
 
 VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct"
 ANATOMY_PROMPT = (
-    "You are checking an anime illustration for drawing errors. Count every person and animal. "
-    "Each person must have exactly one head and two arms and two hands and two legs with normal fingers. "
-    "Each animal must have exactly one head and four legs and one tail. "
-    "Also fail if a body part is duplicated or floating or merged with another body. "
-    "Answer with a single word: OK if everything is correct or BAD if there is any error."
+    "Look at the main character in this anime illustration and count body parts. "
+    "Reply with only this line and nothing else: heads=N arms=N legs=N extra=yes/no "
+    "where extra is yes only if you clearly see a duplicated or floating body part."
 )
 _vision_agreed = False
 
@@ -155,11 +153,24 @@ def _vision_call(body: dict) -> requests.Response:
     return requests.post(url, headers=headers, json=body, timeout=120)
 
 
-def check_anatomy(image_path: str) -> bool | None:
-    """Ask the Workers AI vision model whether limbs and heads are drawn correctly.
+def _parse_counts(answer: str) -> dict | None:
+    found = dict(re.findall(r"(heads|arms|legs|extra)\s*=\s*([a-z0-9]+)", answer.lower()))
+    if not {"heads", "arms", "legs"} <= found.keys():
+        return None
+    try:
+        counts = {k: int(found[k]) for k in ("heads", "arms", "legs")}
+    except ValueError:
+        return None
+    counts["extra"] = found.get("extra", "no").startswith("y")
+    return counts
 
-    Returns True when fine and False when the model reports an error and None when the
-    check itself could not run so the caller keeps the image.
+
+def check_anatomy(image_path: str) -> bool | None:
+    """Ask the Workers AI vision model to count heads and limbs of the main character.
+
+    Returns False only when the counts are clearly wrong (extra head or arm or leg or a
+    duplicated part). True when the counts look normal. None when the check could not run
+    or the answer was unreadable so the caller keeps the image.
     """
     global _vision_agreed
     if not config.cloudflare_account_id or not config.cloudflare_api_token:
@@ -173,7 +184,7 @@ def check_anatomy(image_path: str) -> bool | None:
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
         raw = buf.getvalue()
-        body = {"prompt": ANATOMY_PROMPT, "image": base64.b64encode(raw).decode(), "max_tokens": 8}
+        body = {"prompt": ANATOMY_PROMPT, "image": base64.b64encode(raw).decode(), "max_tokens": 40}
         resp = _vision_call(body)
         if resp.status_code == 400:
             body["image"] = list(raw)
@@ -182,12 +193,20 @@ def check_anatomy(image_path: str) -> bool | None:
             print(f"  검수 요청 실패 (HTTP {resp.status_code}) {_error_text(resp)}")
             return None
         result = resp.json().get("result") or {}
-        answer = str(result.get("response", "")).strip().upper()
-        if answer.startswith("OK"):
-            return True
-        if "BAD" in answer:
-            return False
-        return None
+        answer = str(result.get("response", "")).strip()
+        counts = _parse_counts(answer)
+        print(f"  검수 답변: {answer[:80]}")
+        if counts is None:
+            return None
+        human = counts["arms"] > 0
+        bad = (
+            counts["heads"] > 1
+            or counts["arms"] > 2
+            or counts["legs"] > 4
+            or (human and counts["legs"] > 2)
+            or counts["extra"]
+        )
+        return not bad
     except (requests.RequestException, ValueError, OSError) as e:
         print(f"  검수 오류 ({type(e).__name__})")
         return None

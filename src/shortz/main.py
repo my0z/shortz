@@ -108,9 +108,8 @@ def run(
         _, characters, meta = load_scene_file(scenes_path)
         style = image_style if image_style != DEFAULT_STYLE else meta.get("style", DEFAULT_STYLE)
         backend = image_gen if image_gen != "none" else "pollinations"
-        sheet = build_character_sheet(
-            characters, os.path.join(config.output_dir, "characters"), style, backend, image_check
-        )
+        # The sheet is reviewed by eye so the automatic check only wastes images here.
+        sheet = build_character_sheet(characters, os.path.join(config.output_dir, "characters"), style, backend, False)
         if sheet:
             print(f"캐릭터 시트: {sheet}")
         return
