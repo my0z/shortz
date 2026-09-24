@@ -29,10 +29,16 @@ def _throttle() -> None:
         _last_request_at = time.time()
 
 
+MODEL_ORDER = ["flux", "turbo", None]
+
+
 def _fetch_pollinations(prompt: str, out_path: str, seed: int, width: int, height: int, retries: int = 4) -> bool:
     url = POLLINATIONS_URL.format(prompt=quote(prompt, safe=""))
-    params = {"width": width, "height": height, "seed": seed, "nologo": "true", "model": "flux"}
     for attempt in range(retries + 1):
+        model = MODEL_ORDER[min(attempt // 2, len(MODEL_ORDER) - 1)]
+        params = {"width": width, "height": height, "seed": seed, "nologo": "true"}
+        if model:
+            params["model"] = model
         _throttle()
         try:
             resp = requests.get(url, params=params, timeout=240)
@@ -40,10 +46,13 @@ def _fetch_pollinations(prompt: str, out_path: str, seed: int, width: int, heigh
                 with open(out_path, "wb") as f:
                     f.write(resp.content)
                 return True
-            print(f"  그림 요청 실패 (HTTP {resp.status_code}) 재시도 {attempt + 1}/{retries}")
+            body = resp.text[:160].replace("\n", " ")
+            print(f"  그림 요청 실패 (HTTP {resp.status_code} model={model or 'default'}) {body}")
         except requests.RequestException as e:
-            print(f"  그림 요청 오류 ({type(e).__name__}) 재시도 {attempt + 1}/{retries}")
-        time.sleep(8 * (attempt + 1))
+            print(f"  그림 요청 오류 ({type(e).__name__} model={model or 'default'})")
+        if attempt < retries:
+            print(f"  재시도 {attempt + 1}/{retries}")
+            time.sleep(8 * (attempt + 1))
     return False
 
 
