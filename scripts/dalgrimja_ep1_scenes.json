@@ -1,24 +1,28 @@
 {
   "title": "달그림자 1화 만남",
   "style": "anime style illustration. soft cel shading. cinematic moonlight. detailed. no text",
-  "narrator": {"voice": "ko-KR-SunHiNeural", "google_voice": "ko-KR-Neural2-A", "voice_preset": "차분"},
+  "narrator": {
+    "voice": "ko-KR-SunHiNeural",
+    "google_voice": "ko-KR-Neural2-A",
+    "voice_preset": "차분"
+  },
   "characters": {
     "하린": {
-      "look": "Harin. a 17 year old Korean girl wearing a traditional Joseon hanbok with a pale lavender chima skirt and white jeogori top. long straight black hair tied with a silver binyeo hairpin. large violet eyes. gentle face. flat traditional shoes",
+      "look": "Harin. a 17 year old Korean girl in traditional Korean hanbok from the Joseon dynasty. short white jeogori jacket with a long pale purple otgoreum ribbon bow tied on the chest. high waisted full pale lavender chima skirt reaching the floor. long straight black hair with a silver binyeo hairpin. large violet eyes. gentle face. Korean clothing not Japanese kimono",
       "seed": 11,
       "voice": "ko-KR-SunHiNeural",
       "google_voice": "ko-KR-Neural2-A",
       "voice_preset": "귀여운"
     },
     "서준": {
-      "look": "Seojun. a 19 year old Korean swordsman wearing a navy Joseon dopo robe over a white hanbok with a sword at his waist. short black hair. small scar on his forehead. sharp calm eyes",
+      "look": "Seojun. a 19 year old Korean swordsman in traditional Korean hanbok from the Joseon dynasty. navy dopo overcoat with wide sleeves tied at the chest with a thin braided sejodae cord. white baji trousers. a curved Korean hwando sword hanging from a belt at his waist. short black hair. small scar on his forehead. sharp calm eyes. Korean clothing not Japanese kimono and not a samurai",
       "seed": 23,
       "voice": "ko-KR-InJoonNeural",
       "google_voice": "ko-KR-Neural2-C",
       "voice_preset": "차분"
     },
     "묘묘": {
-      "look": "Myomyo. a small white leopard cat with faint grey spots and golden eyes and a black tipped tail. cute round face. fluffy",
+      "look": "Myomyo. a small white leopard cat with faint grey rosette spots and golden eyes and a black tipped tail. cute round face. fluffy",
       "seed": 37,
       "voice": "ko-KR-SunHiNeural",
       "google_voice": "ko-KR-Neural2-A",
