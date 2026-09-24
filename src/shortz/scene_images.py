@@ -6,6 +6,7 @@ from urllib.parse import quote
 import requests
 from PIL import Image
 
+from . import cf_images
 from .cf_images import check_anatomy, fetch_cloudflare_image
 from .config import config
 
@@ -17,6 +18,14 @@ DEFAULT_STYLE = (
 )
 
 ANATOMY_RETRIES = 2
+
+BACKEND_ALIASES = {"auto": "cloudflare,pollinations"}
+
+
+def backend_chain(spec: str) -> list[str]:
+    """Turn "auto" or "cloudflare,pollinations" into an ordered backend list."""
+    spec = BACKEND_ALIASES.get(spec, spec)
+    return [b.strip() for b in spec.split(",") if b.strip()]
 
 # Pollinations stamps a small logo at the bottom right. Cut that strip off.
 LOGO_CROP_RATIO = 0.06
@@ -85,7 +94,9 @@ def generate_scene_images(
 ) -> list[str]:
     """Generate `count` images for one scene.
 
-    backend is "pollinations" (free without a key) or "cloudflare" (Workers AI with a key).
+    backend is "pollinations" (free without a key) or "cloudflare" (Workers AI with a key)
+    or a comma separated chain such as "cloudflare,pollinations" that falls through when
+    the earlier backend fails or hits its daily quota.
     Images that already exist in out_dir are reused so a re-run only fills the gaps.
     """
     os.makedirs(out_dir, exist_ok=True)
@@ -100,10 +111,17 @@ def generate_scene_images(
             paths.append(path)
             continue
         seed = seed_base + i
-        if backend == "cloudflare":
-            ok = _cloudflare_with_check(full_prompt, path, seed, reference_paths, check)
-        else:
-            ok = _fetch_pollinations(full_prompt, path, seed, config.width, config.height)
+        ok = False
+        for name in backend_chain(backend):
+            if name == "cloudflare":
+                if cf_images.quota_exhausted:
+                    continue
+                ok = _cloudflare_with_check(full_prompt, path, seed, reference_paths, check)
+            else:
+                ok = _fetch_pollinations(full_prompt, path, seed, config.width, config.height)
+            if ok:
+                break
+            print(f"  {name} 생성 실패. 다음 백엔드로 넘어갑니다.")
         if ok:
             paths.append(path)
     return paths

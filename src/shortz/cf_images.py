@@ -27,6 +27,9 @@ ANATOMY_PROMPT = (
 )
 _vision_agreed = False
 
+# Set once the daily quota is hit so the rest of the run can move to another backend.
+quota_exhausted = False
+
 
 def _round16(value: int) -> int:
     return ((value + 15) // 16) * 16
@@ -86,6 +89,9 @@ def fetch_cloudflare_image(
     retries: int = 2,
 ) -> bool:
     """Generate one image with Cloudflare Workers AI and save it at exactly width x height."""
+    global quota_exhausted
+    if quota_exhausted:
+        return False
     if not config.cloudflare_account_id or not config.cloudflare_api_token:
         print("  CLOUDFLARE_ACCOUNT_ID 또는 CLOUDFLARE_API_TOKEN 이 .env 에 없습니다.")
         return False
@@ -133,7 +139,9 @@ def fetch_cloudflare_image(
                 if resp.status_code in (401, 403):
                     return False
                 if resp.status_code == 429:
-                    print("  하루 무료 한도(10000 뉴런)를 넘었거나 요청이 너무 잦습니다.")
+                    print("  하루 무료 한도(10000 뉴런)를 넘었습니다. 남은 그림은 다음 백엔드로 넘깁니다.")
+                    quota_exhausted = True
+                    return False
         except requests.RequestException as e:
             print(f"  Cloudflare 요청 오류 ({type(e).__name__})")
         if attempt < retries:

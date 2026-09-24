@@ -91,6 +91,8 @@ CLOUDFLARE_API_TOKEN=Workers AI 읽기/편집 권한으로 만든 API 토큰
 
 cloudflare 백엔드는 그림을 만든 뒤 Llama 3.2 비전 모델에 보여 팔다리와 머리 개수를 검수합니다. 오류가 나오면 seed를 바꿔 최대 두 번 다시 그립니다. 검수 한 번은 약 10뉴런이라 부담이 없습니다. `--no-image-check`로 끌 수 있습니다.
 
+`--image-gen auto`를 쓰면 cloudflare로 시작해 하루 한도(HTTP 429)에 걸리는 순간부터 남은 그림을 pollinations로 자동 전환합니다. `--image-gen cloudflare,pollinations`처럼 쉼표로 순서를 직접 줄 수도 있습니다. 전환된 그림은 참조 이미지 없이 그려지므로 캐릭터가 조금 달라질 수 있습니다. 다음 날 그 장면 폴더만 지우고 다시 돌리면 cloudflare로 다시 채워집니다.
+
 본 렌더 전에 캐릭터 외모를 먼저 확인하려면 캐릭터 시트만 뽑을 수 있습니다.
 
 ```bash

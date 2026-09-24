@@ -12,7 +12,7 @@ from .characters import (
     load_scene_file,
 )
 from .config import config
-from .scene_images import DEFAULT_STYLE, generate_scene_images
+from .scene_images import DEFAULT_STYLE, backend_chain, generate_scene_images
 from .topic_images import fetch_topic_images
 from .topic_videos import fetch_topic_videos
 from .tts import VOICE_PRESETS, synthesize_scenes, synthesize_sync
@@ -32,7 +32,8 @@ def _load_scenes(
     if image_style == DEFAULT_STYLE and meta.get("style"):
         image_style = meta["style"]
     sheet_dir = os.path.join(config.output_dir, "characters")
-    if image_gen == "cloudflare" and characters:
+    use_cloudflare = "cloudflare" in backend_chain(image_gen)
+    if use_cloudflare and characters:
         missing = [n for n in characters if not os.path.exists(os.path.join(sheet_dir, n, "gen_0.jpg"))]
         if missing:
             print(f"캐릭터 시트가 없어 참조 없이 그립니다: {' '.join(missing)}. --character-sheet 로 먼저 만들 수 있습니다.")
@@ -42,13 +43,13 @@ def _load_scenes(
         scene_media_dir = os.path.join(scene_dir, f"scene_{i}")
         scene = {"text": raw["text"], "path": None, "photo_paths": [], "speaker": raw.get("speaker")}
 
-        if image_gen in ("pollinations", "cloudflare"):
+        if image_gen != "none":
             prompts = raw.get("prompts") or [raw.get("prompt") or raw.get("query", "")]
             per_prompt = photo_count if photo_count > 0 else (1 if len(prompts) > 1 else 2)
             images = []
             for j, prompt in enumerate(prompts):
                 ref_names, ref_paths = [], []
-                if image_gen == "cloudflare":
+                if use_cloudflare:
                     ref_names, ref_paths = character_reference_paths(prompt, characters, sheet_dir)
                 full = expand_prompt(prompt, characters, ref_names)
                 seed = character_seed(prompt, characters, image_seed + i * 100 + j * 10)
@@ -106,7 +107,7 @@ def run(
     if character_sheet:
         _, characters, meta = load_scene_file(scenes_path)
         style = image_style if image_style != DEFAULT_STYLE else meta.get("style", DEFAULT_STYLE)
-        backend = image_gen if image_gen in ("pollinations", "cloudflare") else "pollinations"
+        backend = image_gen if image_gen != "none" else "pollinations"
         sheet = build_character_sheet(
             characters, os.path.join(config.output_dir, "characters"), style, backend, image_check
         )
@@ -260,9 +261,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--image-gen",
-        help="--scenes 사용 시 스톡 대신 장면마다 AI 그림 생성. pollinations는 키 없이 무료. cloudflare는 Workers AI 키 필요",
+        help=(
+            "--scenes 사용 시 스톡 대신 장면마다 AI 그림 생성. pollinations는 키 없이 무료. "
+            "cloudflare는 Workers AI 키 필요. auto는 cloudflare 뒤에 pollinations로 자동 전환. "
+            "쉼표로 순서를 직접 줄 수도 있습니다"
+        ),
         default="none",
-        choices=["none", "pollinations", "cloudflare"],
     )
     parser.add_argument(
         "--image-style",

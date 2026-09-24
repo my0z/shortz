@@ -44,10 +44,10 @@ AI 그림 생성과 캐릭터 고정 기능으로 애니 느낌의 에피소드�
 4. **본 렌더**: 캐릭터가 확정되면 tmux 안에서 실행합니다.
 
    ```
-   time python -m src.shortz.main --scenes scripts/<파일>.json --image-gen cloudflare --auto-music --font-preset 고딕 --out <이름>.mp4
+   time python -m src.shortz.main --scenes scripts/<파일>.json --image-gen auto --auto-music --font-preset 고딕 --out <이름>.mp4
    ```
 
-   cloudflare는 장당 몇 초라 그림 30장에 5분 안팎이고 pollinations는 20분 전후입니다. 실패한 그림은 그라디언트로 대체되며 같은 명령을 다시 실행하면 빠진 그림만 다시 요청합니다. HTTP 429가 나오면 하루 한도라 UTC 자정(한국 오전 9시) 이후 재실행합니다.
+   cloudflare는 장당 몇 초라 그림 30장에 5분 안팎이고 pollinations는 20분 전후입니다. 실패한 그림은 그라디언트로 대체되며 같은 명령을 다시 실행하면 빠진 그림만 다시 요청합니다. `auto`는 cloudflare 한도(HTTP 429)에 걸리면 남은 그림을 pollinations로 자동 전환해 끝까지 만듭니다. 전환된 장면은 참조 이미지가 없어 캐릭터가 조금 다를 수 있으니 다음 날(한국 오전 9시 이후) 그 장면 폴더를 지우고 재실행하면 cloudflare로 다시 채워집니다.
 
 5. **확인과 다운로드**: `ffprobe`로 duration을 확인한 뒤 scp로 받습니다. 캐릭터가 장면마다 달라 보이면 `look`을 더 구체적으로 쓰거나 seed를 바꿔 시트부터 다시 뽑습니다.
 
