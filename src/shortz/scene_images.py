@@ -6,6 +6,7 @@ from urllib.parse import quote
 import requests
 from PIL import Image
 
+from .cf_images import fetch_cloudflare_image
 from .config import config
 
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
@@ -73,9 +74,12 @@ def generate_scene_images(
     out_dir: str,
     style: str = DEFAULT_STYLE,
     seed_base: int = 0,
+    backend: str = "pollinations",
+    reference_paths: list[str] | None = None,
 ) -> list[str]:
-    """Generate `count` images for one scene with Pollinations (free, no API key).
+    """Generate `count` images for one scene.
 
+    backend is "pollinations" (free without a key) or "cloudflare" (Workers AI with a key).
     Images that already exist in out_dir are reused so a re-run only fills the gaps.
     """
     os.makedirs(out_dir, exist_ok=True)
@@ -89,6 +93,11 @@ def generate_scene_images(
         if os.path.exists(path) and os.path.getsize(path) > 10_000:
             paths.append(path)
             continue
-        if _fetch_pollinations(full_prompt, path, seed_base + i, config.width, config.height):
+        seed = seed_base + i
+        if backend == "cloudflare":
+            ok = fetch_cloudflare_image(full_prompt, path, seed, config.width, config.height, reference_paths)
+        else:
+            ok = _fetch_pollinations(full_prompt, path, seed, config.width, config.height)
+        if ok:
             paths.append(path)
     return paths

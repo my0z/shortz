@@ -38,17 +38,36 @@ def referenced_names(prompt: str, characters: dict) -> list[str]:
     return [name for name in NAME_PATTERN.findall(prompt) if name in characters]
 
 
-def expand_prompt(prompt: str, characters: dict) -> str:
-    """Replace {name} with that character's look description."""
+def expand_prompt(prompt: str, characters: dict, reference_names: list[str] | None = None) -> str:
+    """Replace {name} with that character's look description.
+
+    When reference_names is given the names are also tied to reference image
+    indexes so the model can copy the face from the attached images.
+    """
+    reference_names = reference_names or []
 
     def _sub(match):
         name = match.group(1)
         info = characters.get(name)
         if not info:
             return match.group(0)
-        return info.get("look", name)
+        look = info.get("look", name)
+        if name in reference_names:
+            return f"{look} (exactly the character shown in image {reference_names.index(name)})"
+        return look
 
     return NAME_PATTERN.sub(_sub, prompt)
+
+
+def character_reference_paths(prompt: str, characters: dict, sheet_dir: str) -> tuple[list[str], list[str]]:
+    """Reference sheet images for the characters named in prompt. Returns (names, paths)."""
+    names, paths = [], []
+    for name in referenced_names(prompt, characters):
+        path = os.path.join(sheet_dir, name, "gen_0.jpg")
+        if os.path.exists(path) and len(paths) < 4:
+            names.append(name)
+            paths.append(path)
+    return names, paths
 
 
 def character_seed(prompt: str, characters: dict, fallback: int) -> int:
@@ -65,7 +84,9 @@ def _load_font(size: int):
     return ImageFont.load_default()
 
 
-def build_character_sheet(characters: dict, out_dir: str, style: str = DEFAULT_STYLE) -> str | None:
+def build_character_sheet(
+    characters: dict, out_dir: str, style: str = DEFAULT_STYLE, backend: str = "pollinations"
+) -> str | None:
     """Generate one reference image per character and tile them into a single sheet."""
     if not characters:
         print("characters 항목이 없습니다.")
@@ -78,7 +99,7 @@ def build_character_sheet(characters: dict, out_dir: str, style: str = DEFAULT_S
         prompt = CHARACTER_SHEET_PROMPT.format(look=look)
         print(f"캐릭터 '{name}' 시트 생성 중 (seed {seed})...")
         char_dir = os.path.join(out_dir, name)
-        paths = generate_scene_images(prompt, 1, char_dir, style, seed)
+        paths = generate_scene_images(prompt, 1, char_dir, style, seed, backend)
         if paths:
             tiles.append((name, paths[0]))
         else:

@@ -5,7 +5,9 @@ description: Create a Korean anime style shorts episode with recurring AI genera
 
 # 애니 쇼츠 제작 스킬
 
-무료 Pollinations 그림 생성과 캐릭터 고정 기능으로 애니 느낌의 에피소드를 만듭니다. 렌더링은 relay 서버에서만 합니다.
+AI 그림 생성과 캐릭터 고정 기능으로 애니 느낌의 에피소드를 만듭니다. 렌더링은 relay 서버에서만 합니다.
+
+그림 백엔드는 두 가지입니다. 기본은 `cloudflare`(Workers AI. 하루 1만 뉴런 무료. 로고 없음. 캐릭터 시트를 참조 이미지로 넣어 얼굴 유지)이고 키가 없으면 `pollinations`(키 없이 무료. 화질 낮고 로고 자름)를 씁니다. relay `.env`에 `CLOUDFLARE_ACCOUNT_ID`와 `CLOUDFLARE_API_TOKEN`이 있으면 항상 cloudflare를 씁니다.
 
 ## 절차
 
@@ -28,8 +30,10 @@ description: Create a Korean anime style shorts episode with recurring AI genera
    cd ~/shortz && source .venv/bin/activate
    git pull origin <브랜치>
    find . -name __pycache__ -exec rm -rf {} +
-   python -m src.shortz.main --scenes scripts/<파일>.json --character-sheet
+   python -m src.shortz.main --scenes scripts/<파일>.json --image-gen cloudflare --character-sheet
    ```
+
+   시트가 마음에 안 들면 `rm -rf output/characters/<이름>` 후 seed를 바꿔 다시 뽑습니다. 이 시트가 본 렌더의 참조 이미지가 되므로 여기서 확정하는 게 중요합니다.
 
    시트 다운로드는 relay에서 나온 뒤 로컬에서 합니다.
 
@@ -40,10 +44,10 @@ description: Create a Korean anime style shorts episode with recurring AI genera
 4. **본 렌더**: 캐릭터가 확정되면 tmux 안에서 실행합니다.
 
    ```
-   time python -m src.shortz.main --scenes scripts/<파일>.json --image-gen pollinations --auto-music --font-preset 고딕 --out <이름>.mp4
+   time python -m src.shortz.main --scenes scripts/<파일>.json --image-gen cloudflare --auto-music --font-preset 고딕 --out <이름>.mp4
    ```
 
-   그림 생성이 대부분의 시간을 차지합니다. 장면당 그림 2장 기준 16장면이면 약 20분 전후입니다. 실패한 그림은 그라디언트로 대체되며 같은 명령을 다시 실행하면 빠진 그림만 다시 요청합니다.
+   cloudflare는 장당 몇 초라 그림 30장에 5분 안팎이고 pollinations는 20분 전후입니다. 실패한 그림은 그라디언트로 대체되며 같은 명령을 다시 실행하면 빠진 그림만 다시 요청합니다. HTTP 429가 나오면 하루 한도라 UTC 자정(한국 오전 9시) 이후 재실행합니다.
 
 5. **확인과 다운로드**: `ffprobe`로 duration을 확인한 뒤 scp로 받습니다. 캐릭터가 장면마다 달라 보이면 `look`을 더 구체적으로 쓰거나 seed를 바꿔 시트부터 다시 뽑습니다.
 

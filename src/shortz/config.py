@@ -17,6 +17,9 @@ class Config:
     pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
     pixabay_api_key: str = os.getenv("PIXABAY_API_KEY", "")
     google_tts_api_key: str = os.getenv("GOOGLE_TTS_API_KEY", "")
+    cloudflare_account_id: str = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
+    cloudflare_api_token: str = os.getenv("CLOUDFLARE_API_TOKEN", "")
+    cloudflare_image_model: str = os.getenv("CLOUDFLARE_IMAGE_MODEL", "@cf/black-forest-labs/flux-2-klein-4b")
 
 
 config = Config()

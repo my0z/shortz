@@ -4,7 +4,13 @@ import os
 
 from .audio import mix_narration_with_music
 from .background import fetch_random_background
-from .characters import build_character_sheet, character_seed, expand_prompt, load_scene_file
+from .characters import (
+    build_character_sheet,
+    character_reference_paths,
+    character_seed,
+    expand_prompt,
+    load_scene_file,
+)
 from .config import config
 from .scene_images import DEFAULT_STYLE, generate_scene_images
 from .topic_images import fetch_topic_images
@@ -24,22 +30,33 @@ def _load_scenes(
     raw_scenes, characters, meta = load_scene_file(scenes_path)
     if image_style == DEFAULT_STYLE and meta.get("style"):
         image_style = meta["style"]
+    sheet_dir = os.path.join(config.output_dir, "characters")
+    if image_gen == "cloudflare" and characters:
+        missing = [n for n in characters if not os.path.exists(os.path.join(sheet_dir, n, "gen_0.jpg"))]
+        if missing:
+            print(f"캐릭터 시트가 없어 참조 없이 그립니다: {' '.join(missing)}. --character-sheet 로 먼저 만들 수 있습니다.")
 
     scenes = []
     for i, raw in enumerate(raw_scenes):
         scene_media_dir = os.path.join(scene_dir, f"scene_{i}")
         scene = {"text": raw["text"], "path": None, "photo_paths": [], "speaker": raw.get("speaker")}
 
-        if image_gen == "pollinations":
+        if image_gen in ("pollinations", "cloudflare"):
             prompts = raw.get("prompts") or [raw.get("prompt") or raw.get("query", "")]
             per_prompt = photo_count if photo_count > 0 else (1 if len(prompts) > 1 else 2)
             images = []
             for j, prompt in enumerate(prompts):
-                full = expand_prompt(prompt, characters)
+                ref_names, ref_paths = [], []
+                if image_gen == "cloudflare":
+                    ref_names, ref_paths = character_reference_paths(prompt, characters, sheet_dir)
+                full = expand_prompt(prompt, characters, ref_names)
                 seed = character_seed(prompt, characters, image_seed + i * 100 + j * 10)
                 shot_dir = os.path.join(scene_media_dir, f"shot_{j}") if len(prompts) > 1 else scene_media_dir
-                print(f"장면 {i + 1} 컷 {j + 1} 그림 {per_prompt}장 생성 중...")
-                images.extend(generate_scene_images(full, per_prompt, shot_dir, image_style, seed))
+                ref_note = f" (참조 {' '.join(ref_names)})" if ref_names else ""
+                print(f"장면 {i + 1} 컷 {j + 1} 그림 {per_prompt}장 생성 중{ref_note}...")
+                images.extend(
+                    generate_scene_images(full, per_prompt, shot_dir, image_style, seed, image_gen, ref_paths)
+                )
             if not images:
                 print(f"장면 {i + 1} 그림 생성 실패. 그라디언트로 대체합니다.")
             scene["photo_paths"] = images
@@ -85,7 +102,8 @@ def run(
     if character_sheet:
         _, characters, meta = load_scene_file(scenes_path)
         style = image_style if image_style != DEFAULT_STYLE else meta.get("style", DEFAULT_STYLE)
-        sheet = build_character_sheet(characters, os.path.join(config.output_dir, "characters"), style)
+        backend = image_gen if image_gen in ("pollinations", "cloudflare") else "pollinations"
+        sheet = build_character_sheet(characters, os.path.join(config.output_dir, "characters"), style, backend)
         if sheet:
             print(f"캐릭터 시트: {sheet}")
         return
@@ -236,9 +254,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--image-gen",
-        help="--scenes 사용 시 스톡 대신 장면마다 AI 그림 생성. pollinations는 키 없이 무료",
+        help="--scenes 사용 시 스톡 대신 장면마다 AI 그림 생성. pollinations는 키 없이 무료. cloudflare는 Workers AI 키 필요",
         default="none",
-        choices=["none", "pollinations"],
+        choices=["none", "pollinations", "cloudflare"],
     )
     parser.add_argument(
         "--image-style",

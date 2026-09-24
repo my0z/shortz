@@ -76,10 +76,23 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 - 그림은 줌인 줌아웃 좌우 팬을 번갈아 적용해 움직임을 주고 컷 사이에 짧은 암전을 넣습니다.
 - 이미 생성된 그림은 `output/scene_media`에 남아 재실행 시 다시 만들지 않습니다. 특정 장면만 다시 뽑으려면 그 폴더를 지우고 실행하세요.
 
+#### Cloudflare Workers AI로 고화질 생성 (키 필요. 하루 1만 뉴런 무료)
+
+`--image-gen cloudflare`를 쓰면 Pollinations 대신 Cloudflare Workers AI로 그림을 만듭니다. 로고가 없고 1080x1920을 바로 뽑으며 기본 모델 FLUX.2 klein 4B는 참조 이미지를 받아 캐릭터 얼굴을 장면마다 유지합니다. 캐릭터 시트를 먼저 만들어 두면 장면 생성 시 그 시트가 자동으로 참조 이미지로 들어갑니다.
+
+`.env`에 아래 두 값을 넣습니다.
+
+```
+CLOUDFLARE_ACCOUNT_ID=대시보드 우측 Account ID
+CLOUDFLARE_API_TOKEN=Workers AI 읽기/편집 권한으로 만든 API 토큰
+```
+
+무료 한도는 하루 1만 뉴런이고 1080x1920 한 장이 약 250뉴런이라 하루 30~40장이 무료입니다. 한 편에 그림 30장 안팎이면 하루 한 편이 무료 범위입니다. 한도는 UTC 자정에 초기화됩니다. `CLOUDFLARE_IMAGE_MODEL`로 모델을 바꿀 수 있습니다 (`@cf/bytedance/stable-diffusion-xl-lightning`은 더 싸지만 참조 이미지를 못 씁니다).
+
 본 렌더 전에 캐릭터 외모를 먼저 확인하려면 캐릭터 시트만 뽑을 수 있습니다.
 
 ```bash
-python -m src.shortz.main --scenes scripts/dalgrimja_ep1_scenes.json --character-sheet
+python -m src.shortz.main --scenes scripts/dalgrimja_ep1_scenes.json --image-gen cloudflare --character-sheet
 ```
 
 `output/characters/character_sheet.jpg`에 캐릭터별 전신 그림이 나란히 저장됩니다. 마음에 안 드는 캐릭터는 JSON의 `seed`나 `look`을 바꿔 다시 뽑으면 됩니다.
