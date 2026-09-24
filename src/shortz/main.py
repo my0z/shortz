@@ -4,11 +4,12 @@ import os
 
 from .audio import mix_narration_with_music
 from .background import fetch_random_background
+from .characters import build_character_sheet, character_seed, expand_prompt, load_scene_file
 from .config import config
 from .scene_images import DEFAULT_STYLE, generate_scene_images
 from .topic_images import fetch_topic_images
 from .topic_videos import fetch_topic_videos
-from .tts import VOICE_PRESETS, synthesize_sync
+from .tts import VOICE_PRESETS, synthesize_scenes, synthesize_sync
 from .video import FONT_PRESETS, build_shorts_video
 
 
@@ -19,35 +20,42 @@ def _load_scenes(
     image_gen: str = "none",
     image_style: str = DEFAULT_STYLE,
     image_seed: int = 0,
-) -> list[dict]:
-    with open(scenes_path, "r", encoding="utf-8") as f:
-        raw_scenes = json.load(f)
+) -> tuple[list[dict], dict, dict]:
+    raw_scenes, characters, meta = load_scene_file(scenes_path)
+    if image_style == DEFAULT_STYLE and meta.get("style"):
+        image_style = meta["style"]
 
     scenes = []
     for i, raw in enumerate(raw_scenes):
         scene_media_dir = os.path.join(scene_dir, f"scene_{i}")
+        scene = {"text": raw["text"], "path": None, "photo_paths": [], "speaker": raw.get("speaker")}
 
         if image_gen == "pollinations":
-            prompt = raw.get("prompt") or raw.get("query", "")
-            count = photo_count if photo_count > 0 else 2
-            print(f"장면 {i + 1} 그림 {count}장 생성 중...")
-            images = generate_scene_images(prompt, count, scene_media_dir, image_style, image_seed + i * 100)
+            prompts = raw.get("prompts") or [raw.get("prompt") or raw.get("query", "")]
+            per_prompt = photo_count if photo_count > 0 else (1 if len(prompts) > 1 else 2)
+            images = []
+            for j, prompt in enumerate(prompts):
+                full = expand_prompt(prompt, characters)
+                seed = character_seed(prompt, characters, image_seed + i * 100 + j * 10)
+                shot_dir = os.path.join(scene_media_dir, f"shot_{j}") if len(prompts) > 1 else scene_media_dir
+                print(f"장면 {i + 1} 컷 {j + 1} 그림 {per_prompt}장 생성 중...")
+                images.extend(generate_scene_images(full, per_prompt, shot_dir, image_style, seed))
             if not images:
                 print(f"장면 {i + 1} 그림 생성 실패. 그라디언트로 대체합니다.")
-            scenes.append({"text": raw["text"], "path": None, "photo_paths": images})
+            scene["photo_paths"] = images
+            scene["generated"] = True
+            scenes.append(scene)
             continue
 
         query = raw["query"]
         paths = fetch_topic_videos(query, 1, scene_media_dir)
         if not paths:
             print(f"장면 {i + 1} ('{query}') 영상 검색 실패. 그라디언트로 대체합니다.")
-
-        photo_paths = []
         if photo_count > 0:
-            photo_paths = fetch_topic_images(query, photo_count, scene_media_dir)
-
-        scenes.append({"text": raw["text"], "path": paths[0] if paths else None, "photo_paths": photo_paths})
-    return scenes
+            scene["photo_paths"] = fetch_topic_images(query, photo_count, scene_media_dir)
+        scene["path"] = paths[0] if paths else None
+        scenes.append(scene)
+    return scenes, characters, meta
 
 
 def run(
@@ -70,20 +78,44 @@ def run(
     image_gen: str,
     image_style: str,
     image_seed: int,
+    character_sheet: bool = False,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
+    if character_sheet:
+        _, characters, meta = load_scene_file(scenes_path)
+        style = image_style if image_style != DEFAULT_STYLE else meta.get("style", DEFAULT_STYLE)
+        sheet = build_character_sheet(characters, os.path.join(config.output_dir, "characters"), style)
+        if sheet:
+            print(f"캐릭터 시트: {sheet}")
+        return
+
     scenes = None
+    characters: dict = {}
+    meta: dict = {}
     if scenes_path:
         scene_dir = os.path.join(config.output_dir, "scene_media")
-        scenes = _load_scenes(scenes_path, scene_dir, scene_photos, image_gen, image_style, image_seed)
+        scenes, characters, meta = _load_scenes(
+            scenes_path, scene_dir, scene_photos, image_gen, image_style, image_seed
+        )
         script_text = "".join(s["text"] for s in scenes)
     else:
         with open(script_path, "r", encoding="utf-8") as f:
             script_text = f.read().strip()
 
     narration_path = os.path.join(config.output_dir, "narration.mp3")
-    synthesize_sync(script_text, narration_path, preset=voice_preset, engine=tts_engine)
+    if scenes and (characters or meta.get("narrator")):
+        synthesize_scenes(
+            scenes,
+            characters,
+            meta.get("narrator") or {},
+            os.path.join(config.output_dir, "narration_parts"),
+            narration_path,
+            voice_preset,
+            tts_engine,
+        )
+    else:
+        synthesize_sync(script_text, narration_path, preset=voice_preset, engine=tts_engine)
 
     mixed_path = os.path.join(config.output_dir, "narration_mixed.mp3")
     audio_path = mix_narration_with_music(narration_path, mixed_path, music_path=music, auto_ambient=auto_music)
@@ -219,9 +251,16 @@ def main() -> None:
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--character-sheet",
+        help="--scenes 파일의 characters만 그려서 output/characters/character_sheet.jpg를 만들고 종료",
+        action="store_true",
+    )
     args = parser.parse_args()
     if not args.script and not args.scenes:
         parser.error("script 또는 --scenes 중 하나는 반드시 필요합니다")
+    if args.character_sheet and not args.scenes:
+        parser.error("--character-sheet 는 --scenes 와 함께 써야 합니다")
     run(
         args.script,
         args.background,
@@ -242,6 +281,7 @@ def main() -> None:
         args.image_gen,
         args.image_style,
         args.image_seed,
+        args.character_sheet,
     )
 
 

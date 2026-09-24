@@ -55,21 +55,51 @@ def prepare_clip(input_path: str, duration: float, width: int, height: int, fps:
     return out_path
 
 
+PHOTO_MOTIONS = ["zoom_in", "zoom_out", "pan_left", "pan_right"]
+
+
 def prepare_photo_clip(
-    image_path: str, duration: float, width: int, height: int, fps: int, work_dir: str, zoom_end: float = 1.15
+    image_path: str,
+    duration: float,
+    width: int,
+    height: int,
+    fps: int,
+    work_dir: str,
+    zoom_end: float = 1.15,
+    motion: str = "zoom_in",
+    fade: float = 0.0,
 ) -> str:
-    """Ken Burns slow zoom on a still image using ffmpeg zoompan."""
+    """Camera move on a still image using ffmpeg zoompan.
+
+    motion is one of zoom_in / zoom_out / pan_left / pan_right.
+    fade > 0 adds a short dip to black at both ends of the segment.
+    """
     out_path = _segment_path(work_dir)
     frames = max(1, int(round(duration * fps)))
-    zoom_expr = f"min({zoom_end},1+{zoom_end - 1}*on/{frames})"
+    progress = f"on/{max(frames - 1, 1)}"
+    z_max = zoom_end
+    z_span = zoom_end - 1
+    if motion == "zoom_out":
+        z_expr = f"max(1.0,{z_max}-{z_span}*{progress})"
+        x_expr = "iw/2-(iw/zoom/2)"
+    elif motion == "pan_left":
+        z_expr = f"{z_max}"
+        x_expr = f"(iw-iw/zoom)*(1-{progress})"
+    elif motion == "pan_right":
+        z_expr = f"{z_max}"
+        x_expr = f"(iw-iw/zoom)*{progress}"
+    else:
+        z_expr = f"min({z_max},1+{z_span}*{progress})"
+        x_expr = "iw/2-(iw/zoom/2)"
+
     video = (
         ffmpeg.input(image_path)
         .video.filter("scale", width * 2, height * 2, force_original_aspect_ratio="increase")
         .filter("crop", width * 2, height * 2)
         .filter(
             "zoompan",
-            z=zoom_expr,
-            x="iw/2-(iw/zoom/2)",
+            z=z_expr,
+            x=x_expr,
             y="ih/2-(ih/zoom/2)",
             d=frames,
             s=f"{width}x{height}",
@@ -77,6 +107,11 @@ def prepare_photo_clip(
         )
         .filter("setsar", 1)
     )
+    if fade > 0:
+        fade = min(fade, duration / 3)
+        video = video.filter("fade", type="in", start_time=0, duration=fade).filter(
+            "fade", type="out", start_time=max(0.0, duration - fade), duration=fade
+        )
     ffmpeg.output(video, out_path, t=duration, **_encode_kwargs(fps)).overwrite_output().run(quiet=True)
     return out_path
 
@@ -115,6 +150,23 @@ def concat_segments(segment_paths: list[str], work_dir: str) -> str:
         .overwrite_output()
         .run(quiet=True)
     )
+    return out_path
+
+
+def concat_audio(audio_paths: list[str], out_path: str) -> str:
+    """Join narration pieces into one mp3 by re-encoding so timing stays exact."""
+    list_path = out_path + ".txt"
+    with open(list_path, "w", encoding="utf-8") as f:
+        for p in audio_paths:
+            escaped = os.path.abspath(p).replace("'", "'\\''")
+            f.write(f"file '{escaped}'\n")
+    (
+        ffmpeg.input(list_path, f="concat", safe=0)
+        .output(out_path, acodec="libmp3lame", audio_bitrate="128k", ar=24000)
+        .overwrite_output()
+        .run(quiet=True)
+    )
+    os.remove(list_path)
     return out_path
 
 

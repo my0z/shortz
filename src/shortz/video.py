@@ -32,6 +32,7 @@ from .ffmpeg_utils import (
     concat_segments,
     final_render,
     make_work_dir,
+    PHOTO_MOTIONS,
     prepare_clip,
     prepare_gradient_clip,
     prepare_photo_clip,
@@ -316,16 +317,19 @@ def _fast_background_segments(
     def clip(path, d):
         jobs.append(partial(prepare_clip, path, d, w, h, fps, work_dir))
 
-    def photo(path, d):
-        jobs.append(partial(prepare_photo_clip, path, d, w, h, fps, work_dir))
+    motion_index = [0]
+
+    def photo(path, d, fade=0.0):
+        motion = PHOTO_MOTIONS[motion_index[0] % len(PHOTO_MOTIONS)]
+        motion_index[0] += 1
+        jobs.append(partial(prepare_photo_clip, path, d, w, h, fps, work_dir, 1.15, motion, fade))
 
     def gradient(d):
         jobs.append(partial(prepare_gradient_clip, d, w, h, fps, work_dir))
 
     if scenes:
-        total_chars = sum(len(s["text"]) for s in scenes) or 1
-        for scene in scenes:
-            scene_duration = max(0.3, duration * (len(scene["text"]) / total_chars))
+        scene_durations = _scene_durations(scenes, duration)
+        for scene, scene_duration in zip(scenes, scene_durations):
             video_path = scene.get("path")
             photo_paths = scene.get("photo_paths") or []
             if video_path and photo_paths:
@@ -342,8 +346,9 @@ def _fast_background_segments(
                 clip(video_path, video_duration)
             if photo_duration > 0:
                 per_photo = photo_duration / len(photo_paths)
+                cut_fade = 0.15 if scene.get("generated") else 0.0
                 for photo_path in photo_paths:
-                    photo(photo_path, per_photo)
+                    photo(photo_path, per_photo, cut_fade)
             if video_duration <= 0 and photo_duration <= 0:
                 gradient(scene_duration)
     elif topic_videos:
@@ -366,6 +371,27 @@ def _fast_background_segments(
         jobs.append(partial(prepare_solid_clip, duration, w, h, fps, work_dir))
 
     return _run_segment_jobs(jobs)
+
+
+def _scene_durations(scenes: list[dict], duration: float) -> list[float]:
+    """Per scene seconds. Uses measured audio durations when present and character ratio otherwise."""
+    measured = [float(s.get("duration") or 0.0) for s in scenes]
+    if all(m > 0 for m in measured):
+        total = sum(measured) or 1.0
+        return [max(0.3, duration * m / total) for m in measured]
+    total_chars = sum(len(s["text"]) for s in scenes) or 1
+    return [max(0.3, duration * (len(s["text"]) / total_chars)) for s in scenes]
+
+
+def _scene_captions(scenes: list[dict], duration: float) -> list[Caption]:
+    """Captions aligned to each scene's own audio so text never drifts across scenes."""
+    captions: list[Caption] = []
+    cursor = 0.0
+    for scene, scene_duration in zip(scenes, _scene_durations(scenes, duration)):
+        for cap in split_into_captions(scene["text"], scene_duration):
+            captions.append(Caption(cap.text, cursor + cap.start, cursor + cap.end))
+        cursor += scene_duration
+    return captions
 
 
 def _run_segment_jobs(jobs: list[Callable[[], str]]) -> list[str]:
@@ -400,7 +426,10 @@ def _build_shorts_video_fast(
     print(f"배경 구간 {len(segments)}개 이어붙이는 중...")
     background = concat_segments(segments, work_dir)
 
-    captions: list[Caption] = split_into_captions(script_text, duration)
+    if scenes and all(s.get("duration") for s in scenes):
+        captions: list[Caption] = _scene_captions(scenes, duration)
+    else:
+        captions = split_into_captions(script_text, duration)
     ass_path = write_ass(captions, os.path.join(work_dir, "captions.ass"), config.width, config.height, font_preset)
 
     print("최종 렌더링 중 (색보정 + 자막 + 오디오)...")

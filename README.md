@@ -50,6 +50,40 @@ Pexels와 Pixabay에서 무료 API 키를 발급받으면 위키미디어 커먼
 
 `--scene-photos 개수`를 함께 쓰면 각 장면 영상 뒤에 같은 검색어로 찾은 사진을 슬라이드로 이어 붙여 영상과 사진이 번갈아 나오는 구성이 됩니다.
 
+### AI 그림으로 애니 쇼츠 만들기 (무료)
+
+`--image-gen pollinations`를 쓰면 스톡 대신 장면마다 Pollinations(키 없이 무료)로 그림을 생성합니다. 씬 JSON은 아래 확장 형식을 지원합니다.
+
+```json
+{
+  "style": "anime style illustration. soft cel shading. no text",
+  "narrator": {"voice": "ko-KR-SunHiNeural", "voice_preset": "차분"},
+  "characters": {
+    "하린": {"look": "영어 외모 설명", "seed": 11, "voice": "ko-KR-SunHiNeural", "voice_preset": "귀여운"},
+    "서준": {"look": "영어 외모 설명", "seed": 23, "voice": "ko-KR-InJoonNeural", "voice_preset": "차분"}
+  },
+  "scenes": [
+    {"text": "나레이션 문장. ", "prompt": "{하린} standing under the moon"},
+    {"text": "대사 문장. ", "speaker": "서준", "prompt": "close-up of {서준}"},
+    {"text": "긴 장면. ", "prompts": ["wide shot", "{하린} and {서준} fighting"]}
+  ]
+}
+```
+
+- prompt 안의 `{이름}`은 그 캐릭터의 `look` 설명으로 치환되고 seed도 캐릭터 기준으로 고정되어 장면이 달라도 같은 인물로 그려집니다.
+- `speaker`가 있는 장면은 그 캐릭터의 목소리로 읽습니다. 장면마다 따로 합성한 뒤 이어 붙이므로 자막과 그림이 실제 음성 길이에 정확히 맞춰집니다.
+- `prompts` 목록을 주면 컷마다 다른 구도의 그림이 한 장씩 만들어집니다. `--scene-photos N`으로 컷당 장수를 바꿀 수 있습니다.
+- 그림은 줌인 줌아웃 좌우 팬을 번갈아 적용해 움직임을 주고 컷 사이에 짧은 암전을 넣습니다.
+- 이미 생성된 그림은 `output/scene_media`에 남아 재실행 시 다시 만들지 않습니다. 특정 장면만 다시 뽑으려면 그 폴더를 지우고 실행하세요.
+
+본 렌더 전에 캐릭터 외모를 먼저 확인하려면 캐릭터 시트만 뽑을 수 있습니다.
+
+```bash
+python -m src.shortz.main --scenes scripts/dalgrimja_ep1_scenes.json --character-sheet
+```
+
+`output/characters/character_sheet.jpg`에 캐릭터별 전신 그림이 나란히 저장됩니다. 마음에 안 드는 캐릭터는 JSON의 `seed`나 `look`을 바꿔 다시 뽑으면 됩니다.
+
 ### Google Cloud TTS 연동 (선택)
 
 `--tts-engine google`을 쓰면 edge-tts 대신 Google Cloud Text-to-Speech로 나레이션을 생성합니다. Neural2 고품질 음성을 사용하며 `.env`에 `GOOGLE_TTS_API_KEY` 값이 필요합니다. 키가 없으면 기본값인 `edge`를 그대로 쓰면 됩니다.

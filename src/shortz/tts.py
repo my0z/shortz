@@ -1,5 +1,8 @@
 import asyncio
 import base64
+import os
+
+import ffmpeg
 
 import edge_tts
 import requests
@@ -75,3 +78,36 @@ def synthesize_sync(
     if engine == "google":
         return synthesize_google(text, out_path, voice, preset)
     return asyncio.run(synthesize(text, out_path, voice, preset))
+
+
+def synthesize_scenes(
+    scenes: list[dict],
+    characters: dict,
+    narrator: dict,
+    out_dir: str,
+    out_path: str,
+    preset: str = "기본",
+    engine: str = "edge",
+) -> str:
+    """Synthesize each scene with its speaker's voice and join the pieces.
+
+    Every scene gets a "duration" key with the exact audio length in seconds.
+    """
+    from .ffmpeg_utils import concat_audio
+
+    os.makedirs(out_dir, exist_ok=True)
+    voice_key = "google_voice" if engine == "google" else "voice"
+    pieces = []
+    for i, scene in enumerate(scenes):
+        speaker = scene.get("speaker")
+        info = characters.get(speaker) if speaker else narrator
+        info = info or {}
+        voice = info.get(voice_key) or None
+        scene_preset = info.get("voice_preset") or preset
+        piece = os.path.join(out_dir, f"scene_{i}.mp3")
+        who = speaker or "나레이션"
+        print(f"장면 {i + 1} 음성 합성 ({who})...")
+        synthesize_sync(scene["text"], piece, voice, scene_preset, engine)
+        scene["duration"] = float(ffmpeg.probe(piece)["format"]["duration"])
+        pieces.append(piece)
+    return concat_audio(pieces, out_path)
