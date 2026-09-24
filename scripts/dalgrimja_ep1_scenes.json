@@ -8,15 +8,15 @@
   },
   "characters": {
     "하린": {
-      "look": "Harin. a 17 year old Korean girl in traditional Korean hanbok from the Joseon dynasty. short white jeogori jacket with a long pale purple otgoreum ribbon bow tied on the chest. high waisted full pale lavender chima skirt reaching the floor. long straight black hair with a silver binyeo hairpin. large violet eyes. gentle face. Korean clothing not Japanese kimono",
+      "look": "Harin. a 17 year old Korean girl in traditional Korean hanbok from the Joseon dynasty. black hair neatly pulled up and coiled into a low bun at the back of her head fastened with a long silver binyeo hairpin. no loose hair. short white jeogori jacket with a long pale purple otgoreum ribbon bow tied on the chest. high waisted full pale lavender chima skirt reaching the floor. large violet eyes. gentle face. Korean clothing not Japanese kimono",
       "seed": 11,
       "voice": "ko-KR-SunHiNeural",
       "google_voice": "ko-KR-Neural2-A",
       "voice_preset": "귀여운"
     },
     "서준": {
-      "look": "Seojun. a 19 year old Korean swordsman in traditional Korean hanbok from the Joseon dynasty. navy dopo overcoat with wide sleeves tied at the chest with a thin braided sejodae cord. white baji trousers. a curved Korean hwando sword hanging from a belt at his waist. short black hair. small scar on his forehead. sharp calm eyes. Korean clothing not Japanese kimono and not a samurai",
-      "seed": 23,
+      "look": "Seojun. a 19 year old Korean royal guard in traditional Korean hanbok from the Joseon dynasty. black hair tied up in a small topknot sangtu with a black manggeon headband across his forehead. small scar on his forehead. sharp calm eyes. navy dopo overcoat with wide sleeves tied at the chest with a thin braided sejodae cord. white baji trousers. a single Korean hwando sword resting in its scabbard hung from a belt at his left hip. both hands empty at his sides. Korean clothing not Japanese kimono. not a samurai. no katana",
+      "seed": 29,
       "voice": "ko-KR-InJoonNeural",
       "google_voice": "ko-KR-Neural2-C",
       "voice_preset": "차분"
