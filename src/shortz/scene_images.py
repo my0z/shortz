@@ -4,15 +4,16 @@ import time
 from urllib.parse import quote
 
 import requests
+from PIL import Image
 
 from .config import config
 
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 
-DEFAULT_STYLE = (
-    "anime style illustration, clean line art, soft cel shading, vibrant colors, "
-    "cinematic lighting, highly detailed, vertical 9:16 composition, no text, no watermark"
-)
+DEFAULT_STYLE = "anime style illustration. soft cel shading. detailed. no text"
+
+# Pollinations stamps a small logo at the bottom right. Cut that strip off.
+LOGO_CROP_RATIO = 0.06
 
 _request_lock = threading.Lock()
 _last_request_at = 0.0
@@ -32,6 +33,15 @@ def _throttle() -> None:
 MODEL_ORDER = ["flux", "turbo", None]
 
 
+def _crop_logo(path: str) -> None:
+    try:
+        img = Image.open(path).convert("RGB")
+        keep = int(img.height * (1 - LOGO_CROP_RATIO))
+        img.crop((0, 0, img.width, keep)).save(path, quality=92)
+    except Exception as e:
+        print(f"  로고 자르기 실패 ({type(e).__name__})")
+
+
 def _fetch_pollinations(prompt: str, out_path: str, seed: int, width: int, height: int, retries: int = 4) -> bool:
     url = POLLINATIONS_URL.format(prompt=quote(prompt, safe=""))
     for attempt in range(retries + 1):
@@ -45,6 +55,7 @@ def _fetch_pollinations(prompt: str, out_path: str, seed: int, width: int, heigh
             if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
                 with open(out_path, "wb") as f:
                     f.write(resp.content)
+                _crop_logo(out_path)
                 return True
             body = resp.text[:160].replace("\n", " ")
             print(f"  그림 요청 실패 (HTTP {resp.status_code} model={model or 'default'}) {body}")
@@ -68,7 +79,9 @@ def generate_scene_images(
     Images that already exist in out_dir are reused so a re-run only fills the gaps.
     """
     os.makedirs(out_dir, exist_ok=True)
-    full_prompt = f"{style}, {prompt}" if style else prompt
+    # The scene prompt goes first. Image models read only the first few dozen tokens
+    # so the character look must not be pushed behind a long style string.
+    full_prompt = f"{prompt}. {style}" if style else prompt
 
     paths = []
     for i in range(count):

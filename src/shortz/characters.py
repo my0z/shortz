@@ -7,10 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .config import config
 from .scene_images import DEFAULT_STYLE, generate_scene_images
 
-CHARACTER_SHEET_PROMPT = (
-    "character reference sheet. full body front view standing in a neutral pose. "
-    "plain light background. clear face. {look}"
-)
+CHARACTER_SHEET_PROMPT = "{look}. full body front view standing. plain light background. clear face"
 
 NAME_PATTERN = re.compile(r"\{([^{}]+)\}")
 
