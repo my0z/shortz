@@ -17,6 +17,16 @@ SQUARE_ONLY_MODELS = ("flux-1-schnell",)
 
 REFERENCE_MAX_SIDE = 500
 
+VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct"
+ANATOMY_PROMPT = (
+    "You are checking an anime illustration for drawing errors. Count every person and animal. "
+    "Each person must have exactly one head and two arms and two hands and two legs with normal fingers. "
+    "Each animal must have exactly one head and four legs and one tail. "
+    "Also fail if a body part is duplicated or floating or merged with another body. "
+    "Answer with a single word: OK if everything is correct or BAD if there is any error."
+)
+_vision_agreed = False
+
 
 def _round16(value: int) -> int:
     return ((value + 15) // 16) * 16
@@ -129,3 +139,47 @@ def fetch_cloudflare_image(
         if attempt < retries:
             time.sleep(5 * (attempt + 1))
     return False
+
+
+def _vision_call(body: dict) -> requests.Response:
+    url = CF_RUN_URL.format(account=config.cloudflare_account_id, model=VISION_MODEL)
+    headers = {"Authorization": f"Bearer {config.cloudflare_api_token}"}
+    return requests.post(url, headers=headers, json=body, timeout=120)
+
+
+def check_anatomy(image_path: str) -> bool | None:
+    """Ask the Workers AI vision model whether limbs and heads are drawn correctly.
+
+    Returns True when fine and False when the model reports an error and None when the
+    check itself could not run so the caller keeps the image.
+    """
+    global _vision_agreed
+    if not config.cloudflare_account_id or not config.cloudflare_api_token:
+        return None
+    try:
+        if not _vision_agreed:
+            _vision_call({"prompt": "agree"})
+            _vision_agreed = True
+        img = Image.open(image_path).convert("RGB")
+        img.thumbnail((768, 768))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        raw = buf.getvalue()
+        body = {"prompt": ANATOMY_PROMPT, "image": base64.b64encode(raw).decode(), "max_tokens": 8}
+        resp = _vision_call(body)
+        if resp.status_code == 400:
+            body["image"] = list(raw)
+            resp = _vision_call(body)
+        if resp.status_code != 200:
+            print(f"  검수 요청 실패 (HTTP {resp.status_code}) {_error_text(resp)}")
+            return None
+        result = resp.json().get("result") or {}
+        answer = str(result.get("response", "")).strip().upper()
+        if answer.startswith("OK"):
+            return True
+        if "BAD" in answer:
+            return False
+        return None
+    except (requests.RequestException, ValueError, OSError) as e:
+        print(f"  검수 오류 ({type(e).__name__})")
+        return None

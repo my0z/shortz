@@ -1,6 +1,6 @@
 {
   "title": "달그림자 1화 만남",
-  "style": "anime style illustration. soft cel shading. cinematic moonlight. detailed. no text",
+  "style": "anime style illustration with a subtle 3D rendered look. soft cel shading with volumetric moonlight and gentle depth. correct anatomy with exactly two arms and two legs and natural hands. detailed. no text",
   "narrator": {
     "voice": "ko-KR-SunHiNeural",
     "google_voice": "ko-KR-Neural2-A",
@@ -67,7 +67,7 @@
     },
     {
       "text": "사당의 문이 열렸다. 하린과 서준의 눈이 처음으로 마주쳤다. 그 순간 발밑의 그림자가 꿈틀거렸다. ",
-      "prompt": "{하린} and {서준} facing each other at the shrine gate. their shadows stretching long and twisting on the ground. full moon above"
+      "prompt": "{하린} on the left and {서준} on the right facing each other at a shrine gate. both standing with full bodies visible. their long shadows twisting on the ground. full moon above"
     },
     {
       "text": "누구세요. 지금 여기 있으면 위험해요. ",
@@ -83,7 +83,7 @@
       "text": "그림자는 사람의 형상으로 일어섰다. 하린의 손끝에서 달빛이 흘러나왔다. 서준의 칼날이 그림자를 갈랐다. ",
       "prompts": [
         "a huge shadow monster with glowing red eyes looming over a shrine courtyard. moonlight. dark fantasy anime",
-        "{하린} casting a beam of violet moonlight while {서준} slashes the shadow monster with his sword. dynamic action shot"
+        "{서준} slashing a huge shadow monster with his sword. {하린} standing behind him casting a beam of violet moonlight. both full bodies visible. dynamic action shot"
       ]
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "text": "그림자는 흩어졌지만 이건 시작에 불과했다. 달이 뜰 때마다 그림자는 다시 돌아온다. 하린과 서준의 이야기는 이제 막 시작되었다. ",
-      "prompt": "{하린} and {서준} standing back to back under the full moon with {묘묘} at their feet. wind. epic anime poster composition"
+      "prompt": "{하린} and {서준} standing side by side under the full moon with {묘묘} sitting at their feet. all full bodies visible. wind. epic anime poster composition"
     }
   ]
 }

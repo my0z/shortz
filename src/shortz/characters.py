@@ -85,7 +85,7 @@ def _load_font(size: int):
 
 
 def build_character_sheet(
-    characters: dict, out_dir: str, style: str = DEFAULT_STYLE, backend: str = "pollinations"
+    characters: dict, out_dir: str, style: str = DEFAULT_STYLE, backend: str = "pollinations", check: bool = True
 ) -> str | None:
     """Generate one reference image per character and tile them into a single sheet."""
     if not characters:
@@ -99,7 +99,7 @@ def build_character_sheet(
         prompt = CHARACTER_SHEET_PROMPT.format(look=look)
         print(f"캐릭터 '{name}' 시트 생성 중 (seed {seed})...")
         char_dir = os.path.join(out_dir, name)
-        paths = generate_scene_images(prompt, 1, char_dir, style, seed, backend)
+        paths = generate_scene_images(prompt, 1, char_dir, style, seed, backend, None, check)
         if paths:
             tiles.append((name, paths[0]))
         else:

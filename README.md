@@ -89,6 +89,8 @@ CLOUDFLARE_API_TOKEN=Workers AI 읽기/편집 권한으로 만든 API 토큰
 
 무료 한도는 하루 1만 뉴런이고 1080x1920 한 장이 약 250뉴런이라 하루 30~40장이 무료입니다. 한 편에 그림 30장 안팎이면 하루 한 편이 무료 범위입니다. 한도는 UTC 자정에 초기화됩니다. `CLOUDFLARE_IMAGE_MODEL`로 모델을 바꿀 수 있습니다 (`@cf/bytedance/stable-diffusion-xl-lightning`은 더 싸지만 참조 이미지를 못 씁니다).
 
+cloudflare 백엔드는 그림을 만든 뒤 Llama 3.2 비전 모델에 보여 팔다리와 머리 개수를 검수합니다. 오류가 나오면 seed를 바꿔 최대 두 번 다시 그립니다. 검수 한 번은 약 10뉴런이라 부담이 없습니다. `--no-image-check`로 끌 수 있습니다.
+
 본 렌더 전에 캐릭터 외모를 먼저 확인하려면 캐릭터 시트만 뽑을 수 있습니다.
 
 ```bash

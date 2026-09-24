@@ -6,12 +6,17 @@ from urllib.parse import quote
 import requests
 from PIL import Image
 
-from .cf_images import fetch_cloudflare_image
+from .cf_images import check_anatomy, fetch_cloudflare_image
 from .config import config
 
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 
-DEFAULT_STYLE = "anime style illustration. soft cel shading. detailed. no text"
+DEFAULT_STYLE = (
+    "anime style illustration with a subtle 3D rendered look. soft cel shading with volumetric lighting "
+    "and gentle depth. correct anatomy with exactly two arms and two legs and natural hands. detailed. no text"
+)
+
+ANATOMY_RETRIES = 2
 
 # Pollinations stamps a small logo at the bottom right. Cut that strip off.
 LOGO_CROP_RATIO = 0.06
@@ -76,6 +81,7 @@ def generate_scene_images(
     seed_base: int = 0,
     backend: str = "pollinations",
     reference_paths: list[str] | None = None,
+    check: bool = True,
 ) -> list[str]:
     """Generate `count` images for one scene.
 
@@ -95,9 +101,27 @@ def generate_scene_images(
             continue
         seed = seed_base + i
         if backend == "cloudflare":
-            ok = fetch_cloudflare_image(full_prompt, path, seed, config.width, config.height, reference_paths)
+            ok = _cloudflare_with_check(full_prompt, path, seed, reference_paths, check)
         else:
             ok = _fetch_pollinations(full_prompt, path, seed, config.width, config.height)
         if ok:
             paths.append(path)
     return paths
+
+
+def _cloudflare_with_check(prompt: str, path: str, seed: int, reference_paths, check: bool) -> bool:
+    """Generate and then let the vision model reject broken anatomy. Retries with a new seed."""
+    for attempt in range(ANATOMY_RETRIES + 1):
+        ok = fetch_cloudflare_image(prompt, path, seed + attempt * 1000, config.width, config.height, reference_paths)
+        if not ok:
+            return False
+        if not check:
+            return True
+        verdict = check_anatomy(path)
+        if verdict is False and attempt < ANATOMY_RETRIES:
+            print(f"  검수에서 팔다리 오류 발견. 다른 seed로 다시 그립니다 ({attempt + 1}/{ANATOMY_RETRIES})")
+            continue
+        if verdict is False:
+            print("  재시도 후에도 오류가 남아 마지막 그림을 사용합니다")
+        return True
+    return True

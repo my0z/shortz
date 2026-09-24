@@ -26,6 +26,7 @@ def _load_scenes(
     image_gen: str = "none",
     image_style: str = DEFAULT_STYLE,
     image_seed: int = 0,
+    image_check: bool = True,
 ) -> tuple[list[dict], dict, dict]:
     raw_scenes, characters, meta = load_scene_file(scenes_path)
     if image_style == DEFAULT_STYLE and meta.get("style"):
@@ -55,7 +56,9 @@ def _load_scenes(
                 ref_note = f" (참조 {' '.join(ref_names)})" if ref_names else ""
                 print(f"장면 {i + 1} 컷 {j + 1} 그림 {per_prompt}장 생성 중{ref_note}...")
                 images.extend(
-                    generate_scene_images(full, per_prompt, shot_dir, image_style, seed, image_gen, ref_paths)
+                    generate_scene_images(
+                        full, per_prompt, shot_dir, image_style, seed, image_gen, ref_paths, image_check
+                    )
                 )
             if not images:
                 print(f"장면 {i + 1} 그림 생성 실패. 그라디언트로 대체합니다.")
@@ -96,6 +99,7 @@ def run(
     image_style: str,
     image_seed: int,
     character_sheet: bool = False,
+    image_check: bool = True,
 ) -> None:
     os.makedirs(config.output_dir, exist_ok=True)
 
@@ -103,7 +107,9 @@ def run(
         _, characters, meta = load_scene_file(scenes_path)
         style = image_style if image_style != DEFAULT_STYLE else meta.get("style", DEFAULT_STYLE)
         backend = image_gen if image_gen in ("pollinations", "cloudflare") else "pollinations"
-        sheet = build_character_sheet(characters, os.path.join(config.output_dir, "characters"), style, backend)
+        sheet = build_character_sheet(
+            characters, os.path.join(config.output_dir, "characters"), style, backend, image_check
+        )
         if sheet:
             print(f"캐릭터 시트: {sheet}")
         return
@@ -114,7 +120,7 @@ def run(
     if scenes_path:
         scene_dir = os.path.join(config.output_dir, "scene_media")
         scenes, characters, meta = _load_scenes(
-            scenes_path, scene_dir, scene_photos, image_gen, image_style, image_seed
+            scenes_path, scene_dir, scene_photos, image_gen, image_style, image_seed, image_check
         )
         script_text = "".join(s["text"] for s in scenes)
     else:
@@ -270,6 +276,11 @@ def main() -> None:
         default=0,
     )
     parser.add_argument(
+        "--no-image-check",
+        help="cloudflare 생성 시 비전 모델로 팔다리 개수를 검수하고 틀리면 다시 그리는 기능을 끕니다",
+        action="store_true",
+    )
+    parser.add_argument(
         "--character-sheet",
         help="--scenes 파일의 characters만 그려서 output/characters/character_sheet.jpg를 만들고 종료",
         action="store_true",
@@ -300,6 +311,7 @@ def main() -> None:
         args.image_style,
         args.image_seed,
         args.character_sheet,
+        not args.no_image_check,
     )
 
 
